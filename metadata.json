@@ -1,0 +1,5 @@
+{
+  "name": "SchoolSync",
+  "description": "An intelligent school communications triage dashboard for parents. Features AI-powered email analysis, event scheduling, and action tracking.",
+  "requestFramePermissions": []
+}
