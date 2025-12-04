@@ -31,6 +31,45 @@ const mapChildToDb = (child: Partial<Omit<Child, 'id'>>) => ({
     email_rules: child.emailRules
 });
 
+// Email Mappers
+const mapEmailFromDb = (dbEmail: any): Email => ({
+    id: dbEmail.id,
+    subject: dbEmail.subject,
+    sender: dbEmail.sender,
+    preview: dbEmail.preview,
+    body: dbEmail.body,
+    receivedAt: dbEmail.received_at,
+    isProcessed: dbEmail.is_processed,
+    childId: dbEmail.child_id,
+    category: dbEmail.category,
+    summary: dbEmail.summary,
+    extractedEvents: [], // Not stored directly in email table
+    extractedActions: [] // Not stored directly in email table
+});
+
+// Event Mappers
+const mapEventFromDb = (dbEvent: any): SchoolEvent => ({
+    id: dbEvent.id,
+    title: dbEvent.title,
+    date: dbEvent.date,
+    time: dbEvent.time,
+    location: dbEvent.location,
+    childId: dbEvent.child_id,
+    category: dbEvent.category,
+    description: dbEvent.description
+});
+
+// Action Mappers
+const mapActionFromDb = (dbAction: any): ActionItem => ({
+    id: dbAction.id,
+    title: dbAction.title,
+    deadline: dbAction.deadline,
+    childId: dbAction.child_id,
+    isCompleted: dbAction.is_completed,
+    urgency: dbAction.urgency,
+    relatedEmailId: dbAction.related_email_id
+});
+
 export const supabaseService = {
     // Children
     async getChildren(): Promise<Child[]> {
@@ -96,7 +135,7 @@ export const supabaseService = {
             .order('date', { ascending: true });
 
         if (error) throw error;
-        return data as SchoolEvent[];
+        return data.map(mapEventFromDb);
     },
 
     // Actions
@@ -107,7 +146,7 @@ export const supabaseService = {
             .order('deadline', { ascending: true });
 
         if (error) throw error;
-        return data as ActionItem[];
+        return data.map(mapActionFromDb);
     },
 
     async toggleAction(id: string, isCompleted: boolean) {
@@ -127,7 +166,7 @@ export const supabaseService = {
             .order('received_at', { ascending: false });
 
         if (error) throw error;
-        return data as Email[];
+        return data.map(mapEmailFromDb);
     },
 
     async findEmailByDetails(subject: string, receivedAt: string): Promise<Email | null> {
@@ -139,7 +178,7 @@ export const supabaseService = {
             .maybeSingle();
 
         if (error) throw error;
-        return data as Email | null;
+        return data ? mapEmailFromDb(data) : null;
     },
 
     async createEmail(email: Partial<Email>, childId: string): Promise<Email> {
@@ -166,7 +205,7 @@ export const supabaseService = {
             .single();
 
         if (error) throw error;
-        return data as Email;
+        return mapEmailFromDb(data);
     },
 
     async updateEmail(id: string, updates: Partial<Email>): Promise<Email> {
@@ -198,7 +237,7 @@ export const supabaseService = {
             .single();
 
         if (error) throw error;
-        return data as Email;
+        return mapEmailFromDb(data);
     },
 
     async createEvent(event: Partial<SchoolEvent>): Promise<SchoolEvent> {
@@ -223,7 +262,7 @@ export const supabaseService = {
             .single();
 
         if (error) throw error;
-        return data as SchoolEvent;
+        return mapEventFromDb(data);
     },
 
     async createAction(action: Partial<ActionItem>): Promise<ActionItem> {
@@ -247,7 +286,7 @@ export const supabaseService = {
             .single();
 
         if (error) throw error;
-        return data as ActionItem;
+        return mapActionFromDb(data);
     },
 
     // Seed Data
