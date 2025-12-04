@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -15,17 +15,23 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import Login from './src/components/Login';
 
 import { supabaseService } from './src/services/supabaseService';
+import { searchEmails } from './services/gmailService';
+import { analyzeEmailWithGemini } from './services/geminiService';
 
 const AppContent: React.FC = () => {
   const { session, loading } = useAuth();
 
   // Global State
-  // In a real app, this would be managed by Context API, Redux, or Zustand
-  // and persisted to a database.
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
+
+  // Background Sync State
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const syncAbortRef = useRef(false);
 
   useEffect(() => {
     if (session) {
@@ -56,6 +62,121 @@ const AppContent: React.FC = () => {
       setEmails([]);
     }
   }, [session]);
+
+  // Background Sync Function - runs at App level so it persists across navigation
+  const handleBackgroundSync = async () => {
+    if (isSyncing) return;
+
+    setIsSyncing(true);
+    setSyncStatus('Fetching children...');
+    syncAbortRef.current = false;
+
+    try {
+      // 1. Fetch children to get their email rules
+      const children = await supabaseService.getChildren();
+      setChildrenList(children); // Update local state
+      const childNames = children.map(c => c.name);
+
+      // 2. Extract all email rules (domains or emails)
+      const allRules = children.flatMap(child => child.emailRules || []);
+      const validRules = allRules.filter(rule => rule && rule.trim().length > 0);
+
+      if (validRules.length === 0) {
+        setSyncStatus('No school email addresses configured.');
+        setIsSyncing(false);
+        return;
+      }
+
+      // 3. Search for emails matching these rules
+      setSyncStatus('Searching Gmail...');
+      const fetchedEmails = await searchEmails(validRules, 2);
+
+      // 4. Process each email: Check duplicate -> Analyze -> Save
+      const processedEmails: Email[] = [];
+      let processedCount = 0;
+
+      for (const email of fetchedEmails) {
+        if (syncAbortRef.current) {
+          setSyncStatus('Sync cancelled.');
+          break;
+        }
+
+        // Check if already exists
+        const existing = await supabaseService.findEmailByDetails(email.subject, email.receivedAt);
+        if (existing) {
+          console.log(`Skipping duplicate email: ${email.subject}`);
+          continue;
+        }
+
+        // Analyze with Gemini
+        processedCount++;
+        setSyncStatus(`Analyzing email ${processedCount}...`);
+        console.log(`Analyzing email: ${email.subject}`);
+        const analysis = await analyzeEmailWithGemini(email.body || email.preview, childNames);
+
+        // Find matched child
+        const matchedChild = children.find(c => c.name === analysis.childName) || children[0];
+
+        // Save Email
+        const savedEmail = await supabaseService.createEmail({
+          ...email,
+          isProcessed: true,
+          childId: matchedChild.id,
+          category: analysis.category,
+          summary: analysis.summary
+        }, matchedChild.id);
+
+        processedEmails.push(savedEmail);
+
+        // Save Events
+        if (analysis.events && analysis.events.length > 0) {
+          for (const evt of analysis.events) {
+            const savedEvt = await supabaseService.createEvent({
+              title: evt.title,
+              date: evt.date,
+              time: evt.time,
+              location: evt.location,
+              childId: matchedChild.id,
+              category: analysis.category as any,
+              description: "Extracted from email"
+            });
+            setEvents(prev => [...prev, savedEvt]);
+          }
+        }
+
+        // Save Actions
+        if (analysis.actions && analysis.actions.length > 0) {
+          for (const act of analysis.actions) {
+            const savedAct = await supabaseService.createAction({
+              title: act.title,
+              deadline: act.deadline,
+              childId: matchedChild.id,
+              isCompleted: false,
+              urgency: analysis.urgency,
+              relatedEmailId: savedEmail.id
+            });
+            setActions(prev => [...prev, savedAct]);
+          }
+        }
+
+        // Update emails state incrementally
+        setEmails(prev => [savedEmail, ...prev]);
+      }
+
+      if (processedEmails.length > 0) {
+        setSyncStatus(`Synced ${processedEmails.length} new emails!`);
+      } else {
+        setSyncStatus('No new emails found.');
+      }
+
+      setLastSyncTime(new Date().toLocaleTimeString());
+    } catch (err) {
+      console.error(err);
+      setSyncStatus('Sync failed. Check console for details.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Handler to toggle action completion
   const handleToggleAction = async (id: string) => {
@@ -125,11 +246,8 @@ const AppContent: React.FC = () => {
     }
   };
 
-  // Handler for bulk import from Gmail
+  // Handler for bulk import from Gmail (legacy, kept for compatibility)
   const handleEmailsImported = (importedEmails: Email[]) => {
-    // Filter out duplicates based on ID if necessary, or just prepend
-    // For now, we prepend and let React key warnings handle dupes if any (simple approach)
-    // A better approach is to check IDs:
     const existingIds = new Set(emails.map(e => e.id));
     const uniqueNewEmails = importedEmails.filter(e => !existingIds.has(e.id));
 
@@ -142,6 +260,17 @@ const AppContent: React.FC = () => {
     setChildrenList(updatedList);
   };
 
+  const handleDataCleared = () => {
+    setChildrenList([]);
+    setEmails([]);
+    setEvents([]);
+    setActions([]);
+  };
+
+  const handleChildAdded = (child: Child) => {
+    setChildrenList(prev => [...prev, child]);
+  };
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
@@ -152,7 +281,7 @@ const AppContent: React.FC = () => {
 
   return (
     <Router>
-      <Layout>
+      <Layout isSyncing={isSyncing} syncStatus={syncStatus}>
         <Routes>
           <Route path="/" element={
             <Dashboard
@@ -194,7 +323,15 @@ const AppContent: React.FC = () => {
           } />
 
           <Route path="/settings" element={
-            <Settings onEmailsImported={handleEmailsImported} />
+            <Settings
+              onEmailsImported={handleEmailsImported}
+              onDataCleared={handleDataCleared}
+              onChildAdded={handleChildAdded}
+              onSync={handleBackgroundSync}
+              isSyncing={isSyncing}
+              syncStatus={syncStatus}
+              lastSyncTime={lastSyncTime}
+            />
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />

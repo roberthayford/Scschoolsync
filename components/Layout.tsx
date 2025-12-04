@@ -1,12 +1,14 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Menu, X, Loader2, RefreshCw } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
+  isSyncing?: boolean;
+  syncStatus?: string | null;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children }) => {
+const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const location = useLocation();
 
@@ -102,7 +104,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <h2 className="text-lg font-semibold text-slate-800">{getPageTitle()}</h2>
           </div>
           <div className="flex items-center gap-4">
-            {/* Additional header items like search or notifs could go here */}
+            {/* Background Sync Status Indicator */}
+            {isSyncing && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-full text-sm font-medium animate-pulse">
+                <Loader2 className="animate-spin" size={16} />
+                <span className="hidden sm:inline">{syncStatus || 'Syncing...'}</span>
+                <span className="sm:hidden">Syncing</span>
+              </div>
+            )}
           </div>
         </header>
 

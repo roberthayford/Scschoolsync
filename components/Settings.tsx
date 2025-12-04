@@ -1,35 +1,39 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Save, Database, Trash2, UserPlus, Plus } from 'lucide-react';
+import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Trash2, UserPlus, Plus } from 'lucide-react';
 import {
   initializeGmailApi,
   handleAuthClick,
   handleSignoutClick,
   getGmailUserProfile,
-  fetchRecentEmails,
-  searchEmails,
   isUserSignedIn,
-  hasValidCredentials,
-  updateGoogleCredentials
 } from '../services/gmailService';
-import { analyzeEmailWithGemini } from '../services/geminiService';
 import { Email, Child } from '../types';
 import { supabaseService } from '../src/services/supabaseService';
-import { CHILDREN_MOCK, EVENTS_MOCK, ACTIONS_MOCK, EMAILS_MOCK } from '../constants';
 
 interface SettingsProps {
   onEmailsImported: (emails: Email[]) => void;
   onDataCleared?: () => void;
   onChildAdded?: (child: Child) => void;
+  onSync?: () => void;
+  isSyncing?: boolean;
+  syncStatus?: string | null;
+  lastSyncTime?: string | null;
 }
 
-const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, onChildAdded }) => {
+const Settings: React.FC<SettingsProps> = ({
+  onEmailsImported,
+  onDataCleared,
+  onChildAdded,
+  onSync,
+  isSyncing = false,
+  syncStatus,
+  lastSyncTime
+}) => {
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Form state for manual credentials
@@ -55,13 +59,6 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
       const ready = await initializeGmailApi();
       setIsGapiReady(ready);
 
-      // If not ready and we don't have creds, show form
-      // if (!ready && !hasValidCredentials()) {
-      //   setShowCredsForm(true);
-      // } else {
-      //   setShowCredsForm(false);
-      // }
-
       if (ready && isUserSignedIn()) {
         try {
           const profile = await getGmailUserProfile();
@@ -81,15 +78,6 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
     }
   };
 
-  // const handleSaveCredentials = async () => {
-  //   if (!clientIdInput || !apiKeyInput) {
-  //     setError("Please provide both Client ID and API Key");
-  //     return;
-  //   }
-  //   updateGoogleCredentials(clientIdInput.trim(), apiKeyInput.trim());
-  //   await initGmail();
-  // };
-
   const handleConnect = async () => {
     try {
       setError(null);
@@ -99,7 +87,8 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
       setUserProfile(profile);
       setIsConnected(true);
 
-      handleSync();
+      // Trigger background sync after connecting
+      onSync?.();
     } catch (err: any) {
       console.error(err);
       setError("Failed to connect to Google. Please check your popup blocker or credentials.");
@@ -112,104 +101,6 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
     setUserProfile(null);
   };
 
-  const handleSync = async () => {
-    if (!isConnected) return;
-
-    setIsSyncing(true);
-    setError(null);
-    try {
-      // 1. Fetch children to get their email rules
-      const children = await supabaseService.getChildren();
-      const childNames = children.map(c => c.name);
-
-      // 2. Extract all email rules (domains or emails)
-      const allRules = children.flatMap(child => child.emailRules || []);
-      const validRules = allRules.filter(rule => rule && rule.trim().length > 0);
-
-      if (validRules.length === 0) {
-        setError("No school email addresses found. Please add email rules to your children's profiles.");
-        setIsSyncing(false);
-        return;
-      }
-
-      // 3. Search for emails matching these rules
-      const emails = await searchEmails(validRules, 2);
-
-      // 4. Process each email: Check duplicate -> Analyze -> Save
-      const processedEmails: Email[] = [];
-
-      for (const email of emails) {
-        // Check if already exists
-        const existing = await supabaseService.findEmailByDetails(email.subject, email.receivedAt);
-        if (existing) {
-          console.log(`Skipping duplicate email: ${email.subject}`);
-          continue;
-        }
-
-        // Analyze with Gemini
-        console.log(`Analyzing email: ${email.subject}`);
-        const analysis = await analyzeEmailWithGemini(email.body || email.preview, childNames);
-
-        // Find matched child
-        const matchedChild = children.find(c => c.name === analysis.childName) || children[0];
-
-        // Save Email
-        const savedEmail = await supabaseService.createEmail({
-          ...email,
-          isProcessed: true,
-          childId: matchedChild.id,
-          category: analysis.category,
-          summary: analysis.summary
-        }, matchedChild.id);
-
-        processedEmails.push(savedEmail);
-
-        // Save Events
-        if (analysis.events && analysis.events.length > 0) {
-          for (const evt of analysis.events) {
-            await supabaseService.createEvent({
-              title: evt.title,
-              date: evt.date,
-              time: evt.time,
-              location: evt.location,
-              childId: matchedChild.id,
-              category: analysis.category as any, // Simplification
-              description: "Extracted from email"
-            });
-          }
-        }
-
-        // Save Actions
-        if (analysis.actions && analysis.actions.length > 0) {
-          for (const act of analysis.actions) {
-            await supabaseService.createAction({
-              title: act.title,
-              deadline: act.deadline,
-              childId: matchedChild.id,
-              isCompleted: false,
-              urgency: analysis.urgency,
-              relatedEmailId: savedEmail.id
-            });
-          }
-        }
-      }
-
-      if (processedEmails.length > 0) {
-        onEmailsImported(processedEmails);
-        alert(`Successfully synced and analyzed ${processedEmails.length} new emails!`);
-      } else {
-        alert("Sync complete. No new emails found.");
-      }
-
-      setLastSyncTime(new Date().toLocaleTimeString());
-    } catch (err) {
-      console.error(err);
-      setError("Failed to sync emails.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const handleDeleteAllData = async () => {
     if (!confirm('⚠️ WARNING: This will permanently delete ALL your data including children, emails, events, and actions. This cannot be undone. Are you sure?')) {
       return;
@@ -220,7 +111,7 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
       await supabaseService.deleteAllData();
       alert('All data has been deleted successfully!');
       onDataCleared?.();
-      window.location.reload(); // Refresh to clear local state
+      window.location.reload();
     } catch (e: any) {
       alert('Error deleting data: ' + e.message);
     } finally {
@@ -305,22 +196,22 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
                   <div className="text-sm text-slate-600">
                     <p className="font-medium">Sync Status</p>
                     <p className="text-slate-500">
-                      {lastSyncTime ? `Last checked at ${lastSyncTime}` : 'Not synced yet'}
+                      {isSyncing ? syncStatus : (lastSyncTime ? `Last checked at ${lastSyncTime}` : 'Not synced yet')}
                     </p>
                   </div>
 
                   <button
-                    onClick={handleSync}
+                    onClick={() => onSync?.()}
                     disabled={isSyncing}
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
                   >
                     {isSyncing ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />}
-                    {isSyncing ? 'Scanning...' : 'Sync Now'}
+                    {isSyncing ? 'Syncing...' : 'Sync Now'}
                   </button>
                 </div>
 
                 <p className="text-xs text-slate-400 italic">
-                  Note: On first connection, we scan the last 2 months of emails to catch any upcoming events you might have missed.
+                  Note: Sync runs in the background. You can navigate to other pages while it processes.
                 </p>
               </div>
             ) : (
@@ -344,42 +235,40 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
                 )}
 
                 {/* Email Input for Connection */}
-                {!isConnected && (
-                  <div className="w-full max-w-md space-y-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Gmail Address</label>
-                      <input
-                        type="email"
-                        value={emailInput}
-                        onChange={(e) => setEmailInput(e.target.value)}
-                        placeholder="your.email@gmail.com"
-                        className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
-                      />
-                      <p className="text-xs text-slate-500 mt-1">Enter your email to help us connect to the right account.</p>
-                    </div>
-
-                    <button
-                      onClick={handleConnect}
-                      disabled={isInitializing || !isGapiReady || !emailInput}
-                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {isInitializing ? (
-                        <>
-                          <Loader2 className="animate-spin" size={18} /> Loading Client...
-                        </>
-                      ) : isGapiReady ? (
-                        <>
-                          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
-                          Connect with Google
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle size={18} /> Service Unavailable
-                        </>
-                      )}
-                    </button>
+                <div className="w-full max-w-md space-y-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Gmail Address</label>
+                    <input
+                      type="email"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      placeholder="your.email@gmail.com"
+                      className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Enter your email to help us connect to the right account.</p>
                   </div>
-                )}
+
+                  <button
+                    onClick={handleConnect}
+                    disabled={isInitializing || !isGapiReady || !emailInput}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isInitializing ? (
+                      <>
+                        <Loader2 className="animate-spin" size={18} /> Loading Client...
+                      </>
+                    ) : isGapiReady ? (
+                      <>
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
+                        Connect with Google
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={18} /> Service Unavailable
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -488,4 +377,3 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, on
 };
 
 export default Settings;
-
