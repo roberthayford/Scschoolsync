@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut } from 'lucide-react';
-import { initializeGmailApi, handleAuthClick, handleSignoutClick, getGmailUserProfile, fetchRecentEmails } from '../services/gmailService';
+import { initializeGmailApi, handleAuthClick, handleSignoutClick, getGmailUserProfile, fetchRecentEmails, isUserSignedIn } from '../services/gmailService';
 import { Email } from '../types';
 
 interface SettingsProps {
@@ -19,6 +19,18 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     const init = async () => {
       const ready = await initializeGmailApi();
       setIsGapiReady(ready);
+      
+      if (ready && isUserSignedIn()) {
+        try {
+          const profile = await getGmailUserProfile();
+          setUserProfile(profile);
+          setIsConnected(true);
+        } catch (e) {
+          console.warn("Session expired or invalid, please reconnect.", e);
+          handleSignoutClick();
+          setIsConnected(false);
+        }
+      }
     };
     init();
   }, []);
@@ -27,9 +39,11 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     try {
       setError(null);
       await handleAuthClick();
-      setIsConnected(true);
+      
+      // Fetch profile to confirm connection
       const profile = await getGmailUserProfile();
       setUserProfile(profile);
+      setIsConnected(true);
       
       // Auto-sync on first connect as per requirements
       handleSync();

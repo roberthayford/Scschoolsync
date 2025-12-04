@@ -1,4 +1,4 @@
-import { Email, CategoryType } from '../types';
+import { Email } from '../types';
 import { format, subMonths } from 'date-fns';
 
 // These would typically come from environment variables
@@ -6,6 +6,7 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const API_KEY = process.env.GOOGLE_API_KEY || ''; 
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
 const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+const STORAGE_KEY = 'schoolsync_gmail_token';
 
 let tokenClient: any;
 let gapiInited = false;
@@ -35,6 +36,19 @@ export const initializeGmailApi = async (): Promise<boolean> => {
             apiKey: API_KEY,
             discoveryDocs: [DISCOVERY_DOC],
           });
+          
+          // Restore token from local storage if available
+          const storedToken = localStorage.getItem(STORAGE_KEY);
+          if (storedToken) {
+            try {
+              const token = JSON.parse(storedToken);
+              window.gapi.client.setToken(token);
+            } catch (e) {
+              console.error("Error restoring token", e);
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          }
+
           gapiInited = true;
           maybeEnableButtons();
         });
@@ -64,7 +78,19 @@ export const handleAuthClick = async (): Promise<boolean> => {
     tokenClient.callback = async (resp: any) => {
       if (resp.error !== undefined) {
         reject(resp);
+        return;
       }
+      
+      // Securely store the token
+      const token = window.gapi.client.getToken();
+      if (token) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(token));
+      } else if (resp.access_token) {
+        // Fallback if gapi client hasn't updated yet, use response directly
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(resp));
+        window.gapi.client.setToken(resp);
+      }
+
       resolve(true);
     };
 
@@ -83,7 +109,12 @@ export const handleSignoutClick = () => {
   if (token !== null) {
     window.google.accounts.oauth2.revoke(token.access_token);
     window.gapi.client.setToken('');
+    localStorage.removeItem(STORAGE_KEY);
   }
+};
+
+export const isUserSignedIn = () => {
+  return window.gapi && window.gapi.client && window.gapi.client.getToken() !== null;
 };
 
 export const getGmailUserProfile = async () => {
@@ -109,7 +140,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
     const response = await window.gapi.client.gmail.users.messages.list({
       userId: 'me',
       q: query,
-      maxResults: 20 // Limit for demo purposes, would be higher in prod
+      maxResults: 50 // Fetch up to 50 emails to prevent system overload
     });
 
     const messages = response.result.messages;
@@ -122,30 +153,34 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
     const detailedEmails: Email[] = [];
 
     for (const msg of messages) {
-      const details = await window.gapi.client.gmail.users.messages.get({
-        userId: 'me',
-        id: msg.id,
-        format: 'full' // 'full' to get headers like Subject, From
-      });
+      try {
+        const details = await window.gapi.client.gmail.users.messages.get({
+          userId: 'me',
+          id: msg.id,
+          format: 'full' // 'full' to get headers like Subject, From
+        });
 
-      const result = details.result;
-      const headers = result.payload.headers;
-      
-      const subject = headers.find((h: any) => h.name === 'Subject')?.value || '(No Subject)';
-      const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
-      const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
-      const snippet = result.snippet;
+        const result = details.result;
+        const headers = result.payload.headers;
+        
+        const subject = headers.find((h: any) => h.name === 'Subject')?.value || '(No Subject)';
+        const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
+        const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
+        const snippet = result.snippet;
 
-      // Basic mapping
-      detailedEmails.push({
-        id: result.id,
-        subject: subject,
-        sender: from,
-        preview: snippet,
-        receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
-        isProcessed: false,
-        // childId, category, summary will be filled by Gemini later
-      });
+        // Basic mapping
+        detailedEmails.push({
+          id: result.id,
+          subject: subject,
+          sender: from,
+          preview: snippet,
+          receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
+          isProcessed: false,
+          // childId, category, summary will be filled by Gemini later
+        });
+      } catch (innerErr) {
+        console.warn(`Failed to fetch email ${msg.id}`, innerErr);
+      }
     }
 
     return detailedEmails;
