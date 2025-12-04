@@ -102,9 +102,9 @@ const AppContent: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  // if (!session) {
-  //   return <Login />;
-  // }
+  if (!session) {
+    return <Login />;
+  }
 
   return (
     <Router>
