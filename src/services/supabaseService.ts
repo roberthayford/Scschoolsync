@@ -44,7 +44,13 @@ export const supabaseService = {
     },
 
     async createChild(child: Omit<Child, 'id'>): Promise<Child> {
-        const dbData = mapChildToDb(child);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const dbData = {
+            ...mapChildToDb(child),
+            user_id: user.id
+        };
         const { data, error } = await supabase
             .from('children')
             .insert(dbData)
