@@ -58,27 +58,71 @@ const AppContent: React.FC = () => {
   }, [session]);
 
   // Handler to toggle action completion
-  const handleToggleAction = (id: string) => {
+  const handleToggleAction = async (id: string) => {
+    // Optimistic update
     setActions(prev => prev.map(a =>
       a.id === id ? { ...a, isCompleted: !a.isCompleted } : a
     ));
+
+    try {
+      const action = actions.find(a => a.id === id);
+      if (action) {
+        await supabaseService.toggleAction(id, !action.isCompleted);
+      }
+    } catch (error) {
+      console.error("Failed to toggle action", error);
+      // Revert on error
+      setActions(prev => prev.map(a =>
+        a.id === id ? { ...a, isCompleted: !a.isCompleted } : a
+      ));
+    }
   };
 
   // Handler for when an email is processed via AI in the Inbox
-  const handleEmailProcessed = (processedEmail: Email, newEvents: SchoolEvent[], newActions: ActionItem[]) => {
-    setEmails(prev => {
-      const index = prev.findIndex(e => e.id === processedEmail.id);
-      if (index !== -1) {
-        // Update existing email
-        const updated = [...prev];
-        updated[index] = processedEmail;
-        return updated;
+  const handleEmailProcessed = async (processedEmail: Email, newEvents: SchoolEvent[], newActions: ActionItem[]) => {
+    try {
+      let savedEmail: Email;
+
+      // 1. Save/Update Email
+      if (processedEmail.id.startsWith('m-') || processedEmail.id.length < 30) {
+        // Assume temp ID or Gmail ID (short) -> Create new
+        savedEmail = await supabaseService.createEmail(processedEmail, processedEmail.childId!);
+      } else {
+        // Assume UUID -> Update existing
+        savedEmail = await supabaseService.updateEmail(processedEmail.id, processedEmail);
       }
-      // Add new email
-      return [processedEmail, ...prev];
-    });
-    setEvents(prev => [...prev, ...newEvents]);
-    setActions(prev => [...prev, ...newActions]);
+
+      // 2. Save Events
+      const savedEvents: SchoolEvent[] = [];
+      for (const evt of newEvents) {
+        const savedEvt = await supabaseService.createEvent({ ...evt, childId: savedEmail.childId! });
+        savedEvents.push(savedEvt);
+      }
+
+      // 3. Save Actions
+      const savedActions: ActionItem[] = [];
+      for (const act of newActions) {
+        const savedAct = await supabaseService.createAction({ ...act, childId: savedEmail.childId!, relatedEmailId: savedEmail.id });
+        savedActions.push(savedAct);
+      }
+
+      // 4. Update Local State with Saved Data (Real UUIDs)
+      setEmails(prev => {
+        const index = prev.findIndex(e => e.id === processedEmail.id);
+        if (index !== -1) {
+          const updated = [...prev];
+          updated[index] = savedEmail;
+          return updated;
+        }
+        return [savedEmail, ...prev];
+      });
+      setEvents(prev => [...prev, ...savedEvents]);
+      setActions(prev => [...prev, ...savedActions]);
+
+    } catch (error) {
+      console.error("Failed to save processed data", error);
+      alert("Failed to save changes to database.");
+    }
   };
 
   // Handler for bulk import from Gmail

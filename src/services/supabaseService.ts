@@ -130,6 +130,126 @@ export const supabaseService = {
         return data as Email[];
     },
 
+    async findEmailByDetails(subject: string, receivedAt: string): Promise<Email | null> {
+        const { data, error } = await supabase
+            .from('emails')
+            .select('*')
+            .eq('subject', subject)
+            .eq('received_at', receivedAt)
+            .maybeSingle();
+
+        if (error) throw error;
+        return data as Email | null;
+    },
+
+    async createEmail(email: Partial<Email>, childId: string): Promise<Email> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const emailData = {
+            user_id: user.id,
+            subject: email.subject,
+            sender: email.sender,
+            preview: email.preview,
+            body: email.body,
+            received_at: email.receivedAt,
+            is_processed: email.isProcessed,
+            child_id: childId,
+            category: email.category,
+            summary: email.summary
+        };
+
+        const { data, error } = await supabase
+            .from('emails')
+            .insert(emailData)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Email;
+    },
+
+    async updateEmail(id: string, updates: Partial<Email>): Promise<Email> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const emailData = {
+            subject: updates.subject,
+            sender: updates.sender,
+            preview: updates.preview,
+            body: updates.body,
+            received_at: updates.receivedAt,
+            is_processed: updates.isProcessed,
+            child_id: updates.childId,
+            category: updates.category,
+            summary: updates.summary
+        };
+
+        // Remove undefined
+        const cleanData = Object.fromEntries(
+            Object.entries(emailData).filter(([_, v]) => v !== undefined)
+        );
+
+        const { data, error } = await supabase
+            .from('emails')
+            .update(cleanData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Email;
+    },
+
+    async createEvent(event: Partial<SchoolEvent>): Promise<SchoolEvent> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const eventData = {
+            user_id: user.id,
+            child_id: event.childId,
+            title: event.title,
+            date: event.date,
+            time: event.time,
+            location: event.location,
+            category: event.category,
+            description: event.description
+        };
+
+        const { data, error } = await supabase
+            .from('events')
+            .insert(eventData)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as SchoolEvent;
+    },
+
+    async createAction(action: Partial<ActionItem>): Promise<ActionItem> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        const actionData = {
+            user_id: user.id,
+            child_id: action.childId,
+            title: action.title,
+            deadline: action.deadline,
+            is_completed: action.isCompleted,
+            urgency: action.urgency,
+            related_email_id: action.relatedEmailId
+        };
+
+        const { data, error } = await supabase
+            .from('actions')
+            .insert(actionData)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as ActionItem;
+    },
+
     // Seed Data
     async seedData(children: any[], events: any[], actions: any[], emails: any[]) {
         const { data: { user } } = await supabase.auth.getUser();

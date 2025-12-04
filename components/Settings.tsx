@@ -12,6 +12,7 @@ import {
   hasValidCredentials,
   updateGoogleCredentials
 } from '../services/gmailService';
+import { analyzeEmailWithGemini } from '../services/geminiService';
 import { Email } from '../types';
 import { supabaseService } from '../src/services/supabaseService';
 import { CHILDREN_MOCK, EVENTS_MOCK, ACTIONS_MOCK, EMAILS_MOCK } from '../constants';
@@ -107,6 +108,7 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     try {
       // 1. Fetch children to get their email rules
       const children = await supabaseService.getChildren();
+      const childNames = children.map(c => c.name);
 
       // 2. Extract all email rules (domains or emails)
       const allRules = children.flatMap(child => child.emailRules || []);
@@ -121,7 +123,72 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
       // 3. Search for emails matching these rules
       const emails = await searchEmails(validRules, 2);
 
-      onEmailsImported(emails);
+      // 4. Process each email: Check duplicate -> Analyze -> Save
+      const processedEmails: Email[] = [];
+
+      for (const email of emails) {
+        // Check if already exists
+        const existing = await supabaseService.findEmailByDetails(email.subject, email.receivedAt);
+        if (existing) {
+          console.log(`Skipping duplicate email: ${email.subject}`);
+          continue;
+        }
+
+        // Analyze with Gemini
+        console.log(`Analyzing email: ${email.subject}`);
+        const analysis = await analyzeEmailWithGemini(email.body || email.preview, childNames);
+
+        // Find matched child
+        const matchedChild = children.find(c => c.name === analysis.childName) || children[0];
+
+        // Save Email
+        const savedEmail = await supabaseService.createEmail({
+          ...email,
+          isProcessed: true,
+          childId: matchedChild.id,
+          category: analysis.category,
+          summary: analysis.summary
+        }, matchedChild.id);
+
+        processedEmails.push(savedEmail);
+
+        // Save Events
+        if (analysis.events && analysis.events.length > 0) {
+          for (const evt of analysis.events) {
+            await supabaseService.createEvent({
+              title: evt.title,
+              date: evt.date,
+              time: evt.time,
+              location: evt.location,
+              childId: matchedChild.id,
+              category: analysis.category as any, // Simplification
+              description: "Extracted from email"
+            });
+          }
+        }
+
+        // Save Actions
+        if (analysis.actions && analysis.actions.length > 0) {
+          for (const act of analysis.actions) {
+            await supabaseService.createAction({
+              title: act.title,
+              deadline: act.deadline,
+              childId: matchedChild.id,
+              isCompleted: false,
+              urgency: analysis.urgency,
+              relatedEmailId: savedEmail.id
+            });
+          }
+        }
+      }
+
+      if (processedEmails.length > 0) {
+        onEmailsImported(processedEmails);
+        alert(`Successfully synced and analyzed ${processedEmails.length} new emails!`);
+      } else {
+        alert("Sync complete. No new emails found.");
+      }
+
       setLastSyncTime(new Date().toLocaleTimeString());
     } catch (err) {
       console.error(err);
