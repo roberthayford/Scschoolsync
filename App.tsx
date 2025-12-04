@@ -11,18 +11,49 @@ import Settings from './components/Settings';
 import { CHILDREN_MOCK, EMAILS_MOCK, EVENTS_MOCK, ACTIONS_MOCK } from './constants';
 import { Email, SchoolEvent, ActionItem, Child } from './types';
 
-const App: React.FC = () => {
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import Login from './src/components/Login';
+
+import { supabaseService } from './src/services/supabaseService';
+
+const AppContent: React.FC = () => {
+  const { session, loading } = useAuth();
+
   // Global State
   // In a real app, this would be managed by Context API, Redux, or Zustand
   // and persisted to a database.
-  const [childrenList, setChildrenList] = useState<Child[]>(CHILDREN_MOCK);
-  const [emails, setEmails] = useState<Email[]>(EMAILS_MOCK);
-  const [events, setEvents] = useState<SchoolEvent[]>(EVENTS_MOCK);
-  const [actions, setActions] = useState<ActionItem[]>(ACTIONS_MOCK);
+  const [childrenList, setChildrenList] = useState<Child[]>([]);
+  const [emails, setEmails] = useState<Email[]>([]);
+  const [events, setEvents] = useState<SchoolEvent[]>([]);
+  const [actions, setActions] = useState<ActionItem[]>([]);
+
+  useEffect(() => {
+    if (session) {
+      const fetchData = async () => {
+        try {
+          const [fetchedChildren, fetchedEvents, fetchedActions, fetchedEmails] = await Promise.all([
+            supabaseService.getChildren(),
+            supabaseService.getEvents(),
+            supabaseService.getActions(),
+            supabaseService.getEmails()
+          ]);
+
+          setChildrenList(fetchedChildren);
+          setEvents(fetchedEvents);
+          setActions(fetchedActions);
+          setEmails(fetchedEmails);
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      };
+
+      fetchData();
+    }
+  }, [session]);
 
   // Handler to toggle action completion
   const handleToggleAction = (id: string) => {
-    setActions(prev => prev.map(a => 
+    setActions(prev => prev.map(a =>
       a.id === id ? { ...a, isCompleted: !a.isCompleted } : a
     ));
   };
@@ -51,7 +82,7 @@ const App: React.FC = () => {
     // A better approach is to check IDs:
     const existingIds = new Set(emails.map(e => e.id));
     const uniqueNewEmails = importedEmails.filter(e => !existingIds.has(e.id));
-    
+
     if (uniqueNewEmails.length > 0) {
       setEmails(prev => [...uniqueNewEmails, ...prev]);
     }
@@ -61,44 +92,52 @@ const App: React.FC = () => {
     setChildrenList(updatedList);
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (!session) {
+    return <Login />;
+  }
+
   return (
     <Router>
       <Layout>
         <Routes>
           <Route path="/" element={
-            <Dashboard 
-              childrenList={childrenList} 
-              events={events} 
-              actions={actions} 
+            <Dashboard
+              childrenList={childrenList}
+              events={events}
+              actions={actions}
             />
           } />
-          
+
           <Route path="/timeline" element={
-            <Timeline 
-              childrenList={childrenList} 
-              events={events} 
+            <Timeline
+              childrenList={childrenList}
+              events={events}
             />
           } />
-          
+
           <Route path="/actions" element={
-            <Actions 
-              childrenList={childrenList} 
+            <Actions
+              childrenList={childrenList}
               actions={actions}
               onToggleAction={handleToggleAction}
             />
           } />
 
           <Route path="/children" element={
-            <Children 
-              childrenList={childrenList} 
+            <Children
+              childrenList={childrenList}
               onUpdateChildren={handleUpdateChildren}
               onEmailsImported={handleEmailsImported}
             />
           } />
 
           <Route path="/inbox" element={
-            <Inbox 
-              emails={emails} 
+            <Inbox
+              emails={emails}
               childrenList={childrenList}
               onEmailProcessed={handleEmailProcessed}
             />
@@ -112,6 +151,14 @@ const App: React.FC = () => {
         </Routes>
       </Layout>
     </Router>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
