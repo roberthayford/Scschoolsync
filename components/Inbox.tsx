@@ -16,6 +16,7 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
   const [rawEmailText, setRawEmailText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [processingEmailId, setProcessingEmailId] = useState<string | null>(null);
 
   // Draft Reply State
   const [draftingForId, setDraftingForId] = useState<string | null>(null);
@@ -51,17 +52,34 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
     // Map the analysis result to our internal data structures
     const matchedChild = childrenList.find(c => c.name === analysisResult.childName) || childrenList[0];
     
-    const newEmail: Email = {
-      id: `m-${Date.now()}`,
-      subject: "Manually Processed Email", // In a real app we'd extract this too
-      sender: "Manual Input",
-      preview: rawEmailText.substring(0, 50) + "...",
-      receivedAt: new Date().toISOString(),
-      isProcessed: true,
-      childId: matchedChild.id,
-      category: analysisResult.category as CategoryType,
-      summary: analysisResult.summary
-    };
+    let processedEmail: Email;
+
+    if (processingEmailId) {
+        // Update existing email
+        const original = emails.find(e => e.id === processingEmailId);
+        if (!original) return; // Should not happen given logic
+
+        processedEmail = {
+            ...original,
+            isProcessed: true,
+            childId: matchedChild.id,
+            category: analysisResult.category as CategoryType,
+            summary: analysisResult.summary
+        };
+    } else {
+        // Create new manual email
+        processedEmail = {
+            id: `m-${Date.now()}`,
+            subject: "Manually Processed Email", // In a real app we'd extract this too
+            sender: "Manual Input",
+            preview: rawEmailText.substring(0, 50) + "...",
+            receivedAt: new Date().toISOString(),
+            isProcessed: true,
+            childId: matchedChild.id,
+            category: analysisResult.category as CategoryType,
+            summary: analysisResult.summary
+        };
+    }
 
     const newEvents: SchoolEvent[] = analysisResult.events.map((evt: any, idx: number) => ({
       id: `e-${Date.now()}-${idx}`,
@@ -80,15 +98,16 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
       childId: matchedChild.id,
       isCompleted: false,
       urgency: analysisResult.urgency,
-      relatedEmailId: newEmail.id
+      relatedEmailId: processedEmail.id
     }));
 
-    onEmailProcessed(newEmail, newEvents, newActions);
+    onEmailProcessed(processedEmail, newEvents, newActions);
     
     // Reset State
     setShowProcessor(false);
     setRawEmailText('');
     setAnalysisResult(null);
+    setProcessingEmailId(null);
   };
 
   const handleDraftReply = async (e: React.MouseEvent, email: Email) => {
@@ -112,7 +131,11 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900">Inbox</h2>
         <button 
-          onClick={() => setShowProcessor(true)}
+          onClick={() => {
+              setRawEmailText('');
+              setProcessingEmailId(null);
+              setShowProcessor(true);
+          }}
           className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 shadow-sm transition-colors"
         >
           <Plus size={18} />
@@ -163,6 +186,20 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
                     )}
                 </div>
                 <div className="flex flex-col items-center justify-start gap-2">
+                   {!email.isProcessed && (
+                       <button
+                           onClick={(e) => {
+                               e.stopPropagation();
+                               setRawEmailText(email.body || email.preview);
+                               setProcessingEmailId(email.id);
+                               setShowProcessor(true);
+                           }}
+                           className="p-2 rounded-full text-slate-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                           title="Analyze with AI"
+                       >
+                           <Sparkles size={20} />
+                       </button>
+                   )}
                    <button 
                      onClick={(e) => handleDraftReply(e, email)}
                      className={`p-2 rounded-full transition-colors ${isDrafting ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'}`}
@@ -215,7 +252,9 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
                 <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <Sparkles className="text-indigo-600" /> AI Email Processor
                 </h3>
-                <p className="text-sm text-slate-500">Paste an email to automatically extract events and actions.</p>
+                <p className="text-sm text-slate-500">
+                    {processingEmailId ? 'Analysing existing email content.' : 'Paste an email to automatically extract events and actions.'}
+                </p>
               </div>
               <button onClick={() => setShowProcessor(false)} className="text-slate-400 hover:text-slate-600">Close</button>
             </div>

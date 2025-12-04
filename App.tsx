@@ -28,8 +28,18 @@ const App: React.FC = () => {
   };
 
   // Handler for when an email is processed via AI in the Inbox
-  const handleEmailProcessed = (newEmail: Email, newEvents: SchoolEvent[], newActions: ActionItem[]) => {
-    setEmails(prev => [newEmail, ...prev]);
+  const handleEmailProcessed = (processedEmail: Email, newEvents: SchoolEvent[], newActions: ActionItem[]) => {
+    setEmails(prev => {
+      const index = prev.findIndex(e => e.id === processedEmail.id);
+      if (index !== -1) {
+        // Update existing email
+        const updated = [...prev];
+        updated[index] = processedEmail;
+        return updated;
+      }
+      // Add new email
+      return [processedEmail, ...prev];
+    });
     setEvents(prev => [...prev, ...newEvents]);
     setActions(prev => [...prev, ...newActions]);
   };
