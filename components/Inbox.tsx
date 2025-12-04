@@ -150,6 +150,11 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
           const isDrafting = draftingForId === email.id;
           const showDraft = draftResult?.id === email.id;
 
+          // Prepare extended preview text
+          const previewText = email.body 
+            ? email.body.substring(0, 500).replace(/\s+/g, ' ') 
+            : email.preview;
+
           return (
             <div 
               key={email.id} 
@@ -182,7 +187,7 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
                             <span className="font-semibold text-indigo-600">Summary: </span>{email.summary}
                         </p>
                     ) : (
-                        <p className="text-sm text-slate-500 line-clamp-2">{email.preview}</p>
+                        <p className="text-sm text-slate-500 line-clamp-3">{previewText}</p>
                     )}
                 </div>
                 <div className="flex flex-col items-center justify-start gap-2">
