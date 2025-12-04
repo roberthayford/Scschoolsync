@@ -1,3 +1,4 @@
+
 export enum CategoryType {
   ACTION_REQUIRED = 'Action Required',
   EVENT_ATTENDANCE = 'Event - Attendance',
@@ -48,6 +49,7 @@ export interface Email {
   subject: string;
   sender: string;
   preview: string;
+  body?: string; // Full content extracted from Gmail
   receivedAt: string; // ISO String
   isProcessed: boolean;
   childId?: string; // AI Attributed

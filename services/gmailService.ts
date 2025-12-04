@@ -1,3 +1,4 @@
+
 import { Email } from '../types';
 import { format, subMonths } from 'date-fns';
 
@@ -19,6 +20,59 @@ declare global {
     gapi: any;
   }
 }
+
+// Helper to decode Gmail body (URL-safe base64)
+const decodeEmailBody = (data: string) => {
+  try {
+    // Gmail uses URL-safe base64
+    const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+    const binaryString = window.atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
+  } catch (e) {
+    console.error("Error decoding email body", e);
+    return "";
+  }
+};
+
+const extractEmailBody = (payload: any): string => {
+  if (!payload) return "";
+  
+  // 1. Plain text directly in payload body
+  if (payload.body && payload.body.data) {
+    return decodeEmailBody(payload.body.data);
+  }
+
+  // 2. Multipart payload
+  if (payload.parts) {
+    // Priority 1: text/plain
+    const plainPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
+    if (plainPart && plainPart.body && plainPart.body.data) {
+      return decodeEmailBody(plainPart.body.data);
+    }
+
+    // Priority 2: text/html (strip tags for basic analysis)
+    const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
+    if (htmlPart && htmlPart.body && htmlPart.body.data) {
+      const html = decodeEmailBody(htmlPart.body.data);
+      // Simple tag strip for cleaner text analysis
+      return html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
+    }
+    
+    // Priority 3: Recursive search (e.g. multipart/alternative inside mixed)
+    for (const part of payload.parts) {
+      if (part.parts) {
+        const nested = extractEmailBody(part);
+        if (nested) return nested;
+      }
+    }
+  }
+
+  return "";
+};
 
 export const initializeGmailApi = async (): Promise<boolean> => {
   if (!CLIENT_ID) {
@@ -133,6 +187,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
   try {
     // Calculate date for "past 2 months"
     const startDate = subMonths(new Date(), monthsBack);
+    // Gmail requires YYYY/MM/DD format
     const dateQuery = format(startDate, 'yyyy/MM/dd');
     const query = `after:${dateQuery}`; // Gmail API query format
 
@@ -157,7 +212,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
         const details = await window.gapi.client.gmail.users.messages.get({
           userId: 'me',
           id: msg.id,
-          format: 'full' // 'full' to get headers like Subject, From
+          format: 'full' // 'full' to get headers like Subject, From, and body payload
         });
 
         const result = details.result;
@@ -167,6 +222,9 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
         const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
         const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
         const snippet = result.snippet;
+        
+        // Extract body
+        const bodyContent = extractEmailBody(result.payload);
 
         // Basic mapping
         detailedEmails.push({
@@ -174,6 +232,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
           subject: subject,
           sender: from,
           preview: snippet,
+          body: bodyContent || snippet, // Fallback to snippet if body extraction fails
           receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
           isProcessed: false,
           // childId, category, summary will be filled by Gemini later
