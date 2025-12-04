@@ -29,15 +29,15 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900">Actions</h2>
-        
+
         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-          <button 
+          <button
             onClick={() => setFilter('outstanding')}
             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'outstanding' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             Outstanding
           </button>
-          <button 
+          <button
             onClick={() => setFilter('completed')}
             className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'completed' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
@@ -53,14 +53,14 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
           const isOverdue = daysLeft < 0 && !action.isCompleted;
 
           return (
-            <div 
+            <div
               key={action.id}
               className={`
                 relative bg-white p-5 rounded-2xl border transition-all duration-200 flex items-start gap-4
-                ${action.isCompleted ? 'border-slate-100 opacity-60' : 'border-slate-200 shadow-sm hover:border-indigo-300 hover:shadow-md'}
+                ${action.isCompleted ? 'border-slate-100 opacity-60' : 'border-slate-200/60 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-300 hover:shadow-md'}
               `}
             >
-              <button 
+              <button
                 onClick={() => onToggleAction(action.id)}
                 className={`mt-1 text-slate-400 hover:text-indigo-600 transition-colors ${action.isCompleted ? 'text-green-500' : ''}`}
               >
@@ -74,24 +74,24 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
                   </h3>
                   {!action.isCompleted && (
                     <div className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${getUrgencyColor(action.urgency)}`}>
-                       {action.urgency === UrgencyLevel.CRITICAL && <AlertTriangle size={14} />}
-                       {action.urgency} Priority
+                      {action.urgency === UrgencyLevel.CRITICAL && <AlertTriangle size={14} />}
+                      {action.urgency} Priority
                     </div>
                   )}
                 </div>
 
                 <div className="flex items-center gap-4 text-sm mt-2">
-                   <div className="flex items-center gap-2 px-2 py-1 rounded bg-slate-50 border border-slate-100">
-                     <div className={`w-2 h-2 rounded-full bg-${child?.color || 'gray'}-500`}></div>
-                     <span className="font-medium text-slate-600">{child?.name}</span>
-                   </div>
-                   
-                   <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
-                     <Clock size={14} />
-                     <span>
-                       {isOverdue ? `Overdue by ${Math.abs(daysLeft)} days` : `Due ${format(parseISO(action.deadline), 'MMM do')}`}
-                     </span>
-                   </div>
+                  <div className="flex items-center gap-2 px-2 py-1 rounded bg-slate-50 border border-slate-100">
+                    <div className={`w-2 h-2 rounded-full bg-${child?.color || 'gray'}-500`}></div>
+                    <span className="font-medium text-slate-600">{child?.name}</span>
+                  </div>
+
+                  <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                    <Clock size={14} />
+                    <span>
+                      {isOverdue ? `Overdue by ${Math.abs(daysLeft)} days` : `Due ${format(parseISO(action.deadline), 'MMM do')}`}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

@@ -26,10 +26,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
-      
+
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-20 lg:hidden"
           onClick={() => setIsMobileMenuOpen(false)}
         />
@@ -37,7 +37,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:relative z-30 w-64 h-full bg-white border-r border-slate-200 shadow-sm flex flex-col transition-transform duration-300 ease-in-out
+        fixed lg:relative z-30 w-72 h-full bg-white border-r border-slate-200/60 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] flex flex-col transition-transform duration-300 ease-in-out
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
@@ -59,14 +59,18 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               to={item.path}
               onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) => `
-                flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                ${isActive 
-                  ? 'bg-indigo-50 text-indigo-700 font-semibold shadow-sm' 
+                flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all duration-200 group
+                ${isActive
+                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 font-medium'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}
               `}
             >
-              <item.icon size={20} strokeWidth={2} />
-              <span>{item.name}</span>
+              {({ isActive }) => (
+                <>
+                  <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'} />
+                  <span>{item.name}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -87,9 +91,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <header className="h-16 bg-white/80 backdrop-blur-sm border-b border-slate-200 flex items-center justify-between px-6 lg:px-8 z-10">
+        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 lg:px-10 z-10 sticky top-0">
           <div className="flex items-center gap-4">
-            <button 
+            <button
               onClick={() => setIsMobileMenuOpen(true)}
               className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg"
             >
@@ -98,7 +102,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <h2 className="text-lg font-semibold text-slate-800">{getPageTitle()}</h2>
           </div>
           <div className="flex items-center gap-4">
-             {/* Additional header items like search or notifs could go here */}
+            {/* Additional header items like search or notifs could go here */}
           </div>
         </header>
 
