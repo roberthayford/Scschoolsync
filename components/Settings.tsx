@@ -7,6 +7,7 @@ import {
   handleSignoutClick,
   getGmailUserProfile,
   fetchRecentEmails,
+  searchEmails,
   isUserSignedIn,
   hasValidCredentials,
   updateGoogleCredentials
@@ -104,7 +105,22 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     setIsSyncing(true);
     setError(null);
     try {
-      const emails = await fetchRecentEmails(2);
+      // 1. Fetch children to get their email rules
+      const children = await supabaseService.getChildren();
+
+      // 2. Extract all email rules (domains or emails)
+      const allRules = children.flatMap(child => child.emailRules || []);
+      const validRules = allRules.filter(rule => rule && rule.trim().length > 0);
+
+      if (validRules.length === 0) {
+        setError("No school email addresses found. Please add email rules to your children's profiles.");
+        setIsSyncing(false);
+        return;
+      }
+
+      // 3. Search for emails matching these rules
+      const emails = await searchEmails(validRules, 2);
+
       onEmailsImported(emails);
       setLastSyncTime(new Date().toLocaleTimeString());
     } catch (err) {
