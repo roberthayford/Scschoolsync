@@ -14,7 +14,11 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
 
   const filteredActions = actions
     .filter(a => filter === 'outstanding' ? !a.isCompleted : a.isCompleted)
-    .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+    .sort((a, b) => {
+      const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return dateA - dateB;
+    });
 
   const getUrgencyColor = (level: UrgencyLevel) => {
     switch (level) {
@@ -49,8 +53,8 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
       <div className="grid grid-cols-1 gap-4">
         {filteredActions.map(action => {
           const child = childrenList.find(c => c.id === action.childId);
-          const daysLeft = differenceInDays(parseISO(action.deadline), new Date());
-          const isOverdue = daysLeft < 0 && !action.isCompleted;
+          const daysLeft = action.deadline ? differenceInDays(parseISO(action.deadline), new Date()) : null;
+          const isOverdue = daysLeft !== null && daysLeft < 0 && !action.isCompleted;
 
           return (
             <div
@@ -83,15 +87,23 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
                 <div className="flex items-center gap-4 text-sm mt-2">
                   <div className="flex items-center gap-2 px-2 py-1 rounded bg-slate-50 border border-slate-100">
                     <div className={`w-2 h-2 rounded-full bg-${child?.color || 'gray'}-500`}></div>
-                    <span className="font-medium text-slate-600">{child?.name}</span>
+                    <span className="font-medium text-slate-600">{child?.name || 'Unknown'}</span>
                   </div>
 
-                  <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
-                    <Clock size={14} />
-                    <span>
-                      {isOverdue ? `Overdue by ${Math.abs(daysLeft)} days` : `Due ${format(parseISO(action.deadline), 'MMM do')}`}
-                    </span>
-                  </div>
+                  {action.deadline && (
+                    <div className={`flex items-center gap-1.5 ${isOverdue ? 'text-red-600 font-bold' : 'text-slate-500'}`}>
+                      <Clock size={14} />
+                      <span>
+                        {isOverdue ? `Overdue by ${Math.abs(daysLeft!)} days` : `Due ${format(parseISO(action.deadline), 'MMM do')}`}
+                      </span>
+                    </div>
+                  )}
+                  {!action.deadline && (
+                    <div className="flex items-center gap-1.5 text-slate-400">
+                      <Clock size={14} />
+                      <span>No deadline</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
