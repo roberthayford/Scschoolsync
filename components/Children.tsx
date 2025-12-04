@@ -15,6 +15,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showSyncOptions, setShowSyncOptions] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
   
   // New state for the Save & Sync prompt flow
   const [showSaveSyncPrompt, setShowSaveSyncPrompt] = useState(false);
@@ -30,12 +31,21 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
 
   const colors = ['blue', 'pink', 'green', 'purple', 'orange', 'red'];
 
+  const validateEmailOrDomain = (value: string): boolean => {
+    // Basic email regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Domain regex: starts optional @, then alphanumeric/hyphen parts separated by dots, ending in 2+ chars
+    const domainRegex = /^@?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    return emailRegex.test(value) || domainRegex.test(value);
+  };
+
   const handleEdit = (child: Child) => {
     setFormData({ ...child });
     setEditingId(child.id);
     setIsModalOpen(true);
     setShowSyncOptions(false);
     setShowSaveSyncPrompt(false);
+    setInputError(null);
   };
 
   const handleAdd = () => {
@@ -50,28 +60,49 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setIsModalOpen(true);
     setShowSyncOptions(false);
     setShowSaveSyncPrompt(false);
+    setInputError(null);
   };
 
   const handleInitialSave = () => {
     if (!formData.name || !formData.schoolName) return;
 
+    // Handle pending input in the text field
+    let currentRules = formData.emailRules || [];
+    const pendingRule = newRule.trim();
+
+    if (pendingRule) {
+      if (!validateEmailOrDomain(pendingRule)) {
+        setInputError("Please fix the invalid email source before saving.");
+        return;
+      }
+      if (!currentRules.includes(pendingRule)) {
+        currentRules = [...currentRules, pendingRule];
+        // Update state so it reflects in UI if we pause (sync prompt)
+        setFormData(prev => ({ ...prev, emailRules: currentRules }));
+        setNewRule('');
+      }
+    }
+
     // If adding a new child (not editing) and they have email rules, prompt for sync
-    if (!editingId && formData.emailRules && formData.emailRules.length > 0) {
+    if (!editingId && currentRules.length > 0) {
       setShowSaveSyncPrompt(true);
     } else {
-      finalizeSave();
+      finalizeSave(currentRules);
     }
   };
 
-  const finalizeSave = () => {
+  const finalizeSave = (rulesOverride?: string[]) => {
+    const rulesToUse = rulesOverride || formData.emailRules || [];
+    const dataToSave = { ...formData, emailRules: rulesToUse };
+
     if (onUpdateChildren) {
       if (editingId) {
         // Update existing
-        const updated = childrenList.map(c => c.id === editingId ? { ...c, ...formData } as Child : c);
+        const updated = childrenList.map(c => c.id === editingId ? { ...c, ...dataToSave } as Child : c);
         onUpdateChildren(updated);
       } else {
         // Add new
-        const newChild = { ...formData, id: `c-${Date.now()}` } as Child;
+        const newChild = { ...dataToSave, id: `c-${Date.now()}` } as Child;
         onUpdateChildren([...childrenList, newChild]);
       }
     }
@@ -82,6 +113,8 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setIsModalOpen(false);
     setShowSaveSyncPrompt(false);
     setIsSyncing(false);
+    setInputError(null);
+    setNewRule('');
   };
 
   const handleSyncAndSave = async (months: number | null) => {
@@ -113,10 +146,24 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
   };
 
   const addRule = () => {
-    if (newRule && !formData.emailRules?.includes(newRule)) {
-      setFormData(prev => ({ ...prev, emailRules: [...(prev.emailRules || []), newRule] }));
+    const trimmed = newRule.trim();
+    if (!trimmed) return;
+
+    if (formData.emailRules?.includes(trimmed)) {
+      // Already exists, just clear input
       setNewRule('');
+      setInputError(null);
+      return;
     }
+
+    if (!validateEmailOrDomain(trimmed)) {
+      setInputError("Please enter a valid email (e.g. name@school.com) or domain (e.g. school.com)");
+      return;
+    }
+
+    setFormData(prev => ({ ...prev, emailRules: [...(prev.emailRules || []), trimmed] }));
+    setNewRule('');
+    setInputError(null);
   };
 
   const removeRule = (rule: string) => {
@@ -366,14 +413,14 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                             
                             <p className="text-xs text-slate-500 mb-4">Add school domains (e.g., <code className="bg-slate-100 px-1 rounded">school.com</code>) or specific sender addresses (e.g., <code className="bg-slate-100 px-1 rounded">coach@club.com</code>).</p>
 
-                            <div className="flex gap-2 mb-3">
+                            <div className="flex gap-2 mb-1">
                                 <input 
                                     type="text"
                                     value={newRule}
-                                    onChange={e => setNewRule(e.target.value)}
+                                    onChange={e => { setNewRule(e.target.value); setInputError(null); }}
                                     onKeyDown={e => e.key === 'Enter' && addRule()}
                                     placeholder="sender@email.com or @domain.com"
-                                    className="flex-1 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
+                                    className={`flex-1 px-3 py-2 bg-white text-slate-900 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none ${inputError ? 'border-red-300' : 'border-slate-300'}`}
                                 />
                                 <button 
                                     onClick={addRule}
@@ -383,8 +430,11 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                                     <Plus size={18} />
                                 </button>
                             </div>
+                            {inputError && (
+                                <p className="text-xs text-red-500 ml-1">{inputError}</p>
+                            )}
 
-                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                            <div className="space-y-2 max-h-40 overflow-y-auto mt-3">
                                 {formData.emailRules?.map((rule, idx) => (
                                     <div key={idx} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
                                         <span className="text-sm text-slate-700 font-mono">{rule}</span>
