@@ -75,45 +75,62 @@ const extractEmailBody = (payload: any): string => {
 };
 
 export const initializeGmailApi = async (): Promise<boolean> => {
-  if (!CLIENT_ID) {
-    console.warn("Google Client ID not set. Gmail integration will not work.");
+  // If keys are missing, fail fast but allow UI to render 'unavailable' state
+  if (!CLIENT_ID || !API_KEY) {
+    console.warn("Google Client ID or API Key not set. Gmail integration will not work.");
     return false;
   }
 
   return new Promise((resolve) => {
+    const timeout = setTimeout(() => {
+        console.error("Google Identity Services script timed out.");
+        resolve(false);
+    }, 5000); // 5 second timeout
+
     const checkLibs = setInterval(() => {
       if (window.gapi && window.google) {
         clearInterval(checkLibs);
+        clearTimeout(timeout);
         
         window.gapi.load('client', async () => {
-          await window.gapi.client.init({
-            apiKey: API_KEY,
-            discoveryDocs: [DISCOVERY_DOC],
-          });
-          
-          // Restore token from local storage if available
-          const storedToken = localStorage.getItem(STORAGE_KEY);
-          if (storedToken) {
-            try {
-              const token = JSON.parse(storedToken);
-              window.gapi.client.setToken(token);
-            } catch (e) {
-              console.error("Error restoring token", e);
-              localStorage.removeItem(STORAGE_KEY);
+          try {
+            await window.gapi.client.init({
+                apiKey: API_KEY,
+                discoveryDocs: [DISCOVERY_DOC],
+            });
+            
+            // Restore token from local storage if available
+            const storedToken = localStorage.getItem(STORAGE_KEY);
+            if (storedToken) {
+                try {
+                const token = JSON.parse(storedToken);
+                window.gapi.client.setToken(token);
+                } catch (e) {
+                console.error("Error restoring token", e);
+                localStorage.removeItem(STORAGE_KEY);
+                }
             }
+
+            gapiInited = true;
+            maybeEnableButtons();
+          } catch (err) {
+            console.error("GAPI Client Init Error", err);
+            resolve(false);
           }
-
-          gapiInited = true;
-          maybeEnableButtons();
         });
 
-        tokenClient = window.google.accounts.oauth2.initTokenClient({
-          client_id: CLIENT_ID,
-          scope: SCOPES,
-          callback: '', // defined later
-        });
-        gisInited = true;
-        maybeEnableButtons();
+        if (window.google.accounts && window.google.accounts.oauth2) {
+            tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: '', // defined later
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        } else {
+             // GIS script loaded but object missing?
+             console.error("Google Accounts OAuth2 not found");
+        }
       }
     }, 100);
 

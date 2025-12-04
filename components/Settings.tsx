@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut } from 'lucide-react';
 import { initializeGmailApi, handleAuthClick, handleSignoutClick, getGmailUserProfile, fetchRecentEmails, isUserSignedIn } from '../services/gmailService';
@@ -9,6 +10,7 @@ interface SettingsProps {
 
 const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
   const [isGapiReady, setIsGapiReady] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -17,19 +19,26 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
 
   useEffect(() => {
     const init = async () => {
-      const ready = await initializeGmailApi();
-      setIsGapiReady(ready);
-      
-      if (ready && isUserSignedIn()) {
-        try {
-          const profile = await getGmailUserProfile();
-          setUserProfile(profile);
-          setIsConnected(true);
-        } catch (e) {
-          console.warn("Session expired or invalid, please reconnect.", e);
-          handleSignoutClick();
-          setIsConnected(false);
+      try {
+        const ready = await initializeGmailApi();
+        setIsGapiReady(ready);
+        
+        if (ready && isUserSignedIn()) {
+          try {
+            const profile = await getGmailUserProfile();
+            setUserProfile(profile);
+            setIsConnected(true);
+          } catch (e) {
+            console.warn("Session expired or invalid, please reconnect.", e);
+            handleSignoutClick();
+            setIsConnected(false);
+          }
         }
+      } catch (e) {
+        console.error("Failed to initialize Gmail API", e);
+        setIsGapiReady(false);
+      } finally {
+        setIsInitializing(false);
       }
     };
     init();
@@ -153,20 +162,31 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
                      <AlertCircle size={16} /> {error}
                    </div>
                  )}
+                 
+                 {!isGapiReady && !isInitializing && (
+                    <div className="bg-yellow-50 text-yellow-700 px-4 py-3 rounded-lg text-sm border border-yellow-200 max-w-md">
+                        <p className="font-bold mb-1">Service Unavailable</p>
+                        <p>Google Client services failed to initialize. Check if environment variables for GOOGLE_CLIENT_ID and API_KEY are set, or if an ad-blocker is preventing the script from loading.</p>
+                    </div>
+                 )}
 
                  <button 
                    onClick={handleConnect}
-                   disabled={!isGapiReady}
+                   disabled={isInitializing || !isGapiReady}
                    className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                  >
-                   {isGapiReady ? (
+                   {isInitializing ? (
+                     <>
+                        <Loader2 className="animate-spin" size={18} /> Loading Client...
+                     </>
+                   ) : isGapiReady ? (
                      <>
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
                         Connect with Google
                      </>
                    ) : (
                      <>
-                        <Loader2 className="animate-spin" size={18} /> Loading Client...
+                        <AlertCircle size={18} /> Service Unavailable
                      </>
                    )}
                  </button>
