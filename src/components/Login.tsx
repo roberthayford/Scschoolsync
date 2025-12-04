@@ -14,7 +14,7 @@ const Login: React.FC = () => {
         const { error } = await supabase.auth.signInWithOtp({
             email,
             options: {
-                emailRedirectTo: window.location.origin,
+                emailRedirectTo: import.meta.env.VITE_APP_URL || 'https://scschoolsync.vercel.app/',
             },
         });
 
