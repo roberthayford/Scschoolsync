@@ -204,7 +204,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                                 type="text" 
                                 value={formData.name}
                                 onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
+                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
                                 placeholder="e.g. Emma"
                             />
                         </div>
@@ -214,7 +214,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                                 type="text" 
                                 value={formData.schoolName}
                                 onChange={e => setFormData(prev => ({ ...prev, schoolName: e.target.value }))}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
+                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
                                 placeholder="e.g. St Mary's Primary"
                             />
                         </div>
@@ -248,16 +248,16 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                                 ) : (
                                     <div className="absolute right-0 top-0 bg-white border border-slate-200 shadow-lg rounded-xl p-2 z-10 w-48 animate-in fade-in slide-in-from-top-1">
                                         <div className="text-xs font-bold text-slate-400 px-2 pb-1 mb-1 border-b border-slate-100">Fetch emails from...</div>
-                                        <button onClick={() => handleSyncHistory(1)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2">
+                                        <button onClick={() => handleSyncHistory(1)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
                                             <Calendar size={12} /> Last 1 Month
                                         </button>
-                                        <button onClick={() => handleSyncHistory(3)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2">
+                                        <button onClick={() => handleSyncHistory(3)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
                                             <Calendar size={12} /> Last 3 Months
                                         </button>
-                                        <button onClick={() => handleSyncHistory(6)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2">
+                                        <button onClick={() => handleSyncHistory(6)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
                                             <Calendar size={12} /> Last 6 Months
                                         </button>
-                                        <button onClick={() => handleSyncHistory(12)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2">
+                                        <button onClick={() => handleSyncHistory(12)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
                                             <Calendar size={12} /> Last 1 Year
                                         </button>
                                         <button onClick={() => setShowSyncOptions(false)} className="w-full text-center mt-1 text-xs text-slate-400 hover:text-slate-600">Cancel</button>
@@ -275,7 +275,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                                 onChange={e => setNewRule(e.target.value)}
                                 onKeyDown={e => e.key === 'Enter' && addRule()}
                                 placeholder="sender@email.com or @domain.com"
-                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
+                                className="flex-1 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
                             />
                             <button 
                                 onClick={addRule}

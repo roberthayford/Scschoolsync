@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Email, Child, CategoryType, SchoolEvent, ActionItem } from '../types';
 import { Mail, RefreshCw, Plus, ArrowRight, Loader2, Sparkles, CheckCircle2, MessageSquare, Copy } from 'lucide-react';
@@ -223,7 +224,7 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
               {!analysisResult ? (
                 <div className="space-y-4">
                   <textarea
-                    className="w-full h-64 p-4 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none text-slate-700 font-mono text-sm"
+                    className="w-full h-64 p-4 bg-white text-slate-900 rounded-xl border border-slate-300 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none resize-none font-mono text-sm"
                     placeholder="Paste email content here..."
                     value={rawEmailText}
                     onChange={(e) => setRawEmailText(e.target.value)}
