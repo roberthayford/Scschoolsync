@@ -4,7 +4,7 @@ import { AIAnalysisResult, CategoryType, UrgencyLevel } from '../types';
 // Initialize Gemini Client
 // In a real production app, this would likely be proxied through a backend
 // to protect the API key, but for this demo, we use it directly as per instructions.
-const apiKey = process.env.API_KEY || ''; 
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
 export const analyzeEmailWithGemini = async (emailContent: string, childNames: string[]): Promise<AIAnalysisResult> => {
@@ -14,7 +14,7 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
   }
 
   const modelId = "gemini-2.5-flash"; // Efficient for text processing
-  
+
   const prompt = `
     You are an intelligent assistant for the "SchoolSync" app. 
     Analyze the following school email text.
@@ -75,7 +75,7 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
 
     const jsonText = response.text;
     if (!jsonText) throw new Error("No response from Gemini");
-    
+
     return JSON.parse(jsonText) as AIAnalysisResult;
 
   } catch (error) {
@@ -119,10 +119,10 @@ export const askDashboardAgent = async (query: string, context: { events: any[],
   if (!ai) return "Gemini API key missing. Cannot answer queries.";
 
   const modelId = "gemini-2.5-flash";
-  
+
   // Format context for the model
   const contextString = JSON.stringify({
-    upcoming_events: context.events, 
+    upcoming_events: context.events,
     outstanding_actions: context.actions.filter(a => !a.isCompleted)
   }, null, 2);
 
