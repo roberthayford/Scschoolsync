@@ -1,27 +1,85 @@
 import { supabase } from '../lib/supabaseClient';
 import { Child, Email, SchoolEvent, ActionItem } from '../../types';
 
+// Database types (snake_case as stored in Supabase)
+interface SupabaseChild {
+    id: string;
+    user_id: string;
+    name: string;
+    school_name: string | null;
+    color: string | null;
+    avatar_url: string | null;
+    email_rules: string[] | null;
+    created_at: string;
+}
+
+// Helper functions to map between database and frontend types
+const mapChildFromDb = (dbChild: SupabaseChild): Child => ({
+    id: dbChild.id,
+    name: dbChild.name,
+    schoolName: dbChild.school_name || '',
+    color: dbChild.color || 'blue',
+    avatarUrl: dbChild.avatar_url || '',
+    emailRules: dbChild.email_rules || []
+});
+
+const mapChildToDb = (child: Partial<Omit<Child, 'id'>>) => ({
+    name: child.name,
+    school_name: child.schoolName,
+    color: child.color,
+    avatar_url: child.avatarUrl,
+    email_rules: child.emailRules
+});
+
 export const supabaseService = {
     // Children
-    async getChildren() {
+    async getChildren(): Promise<Child[]> {
         const { data, error } = await supabase
             .from('children')
             .select('*')
             .order('created_at', { ascending: true });
 
         if (error) throw error;
-        return data as Child[];
+        return (data as SupabaseChild[]).map(mapChildFromDb);
     },
 
-    async createChild(child: Omit<Child, 'id' | 'user_id' | 'created_at'>) {
+    async createChild(child: Omit<Child, 'id'>): Promise<Child> {
+        const dbData = mapChildToDb(child);
         const { data, error } = await supabase
             .from('children')
-            .insert(child)
+            .insert(dbData)
             .select()
             .single();
 
         if (error) throw error;
-        return data as Child;
+        return mapChildFromDb(data as SupabaseChild);
+    },
+
+    async updateChild(id: string, updates: Partial<Omit<Child, 'id'>>): Promise<Child> {
+        const dbData = mapChildToDb(updates);
+        // Remove undefined values 
+        const cleanDbData = Object.fromEntries(
+            Object.entries(dbData).filter(([_, v]) => v !== undefined)
+        );
+
+        const { data, error } = await supabase
+            .from('children')
+            .update(cleanDbData)
+            .eq('id', id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return mapChildFromDb(data as SupabaseChild);
+    },
+
+    async deleteChild(id: string): Promise<void> {
+        const { error } = await supabase
+            .from('children')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
     },
 
     // Events
