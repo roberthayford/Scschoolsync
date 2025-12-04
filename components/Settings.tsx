@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Save, Database } from 'lucide-react';
+import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Save, Database, Trash2, UserPlus, Plus } from 'lucide-react';
 import {
   initializeGmailApi,
   handleAuthClick,
@@ -13,15 +13,17 @@ import {
   updateGoogleCredentials
 } from '../services/gmailService';
 import { analyzeEmailWithGemini } from '../services/geminiService';
-import { Email } from '../types';
+import { Email, Child } from '../types';
 import { supabaseService } from '../src/services/supabaseService';
 import { CHILDREN_MOCK, EVENTS_MOCK, ACTIONS_MOCK, EMAILS_MOCK } from '../constants';
 
 interface SettingsProps {
   onEmailsImported: (emails: Email[]) => void;
+  onDataCleared?: () => void;
+  onChildAdded?: (child: Child) => void;
 }
 
-const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
+const Settings: React.FC<SettingsProps> = ({ onEmailsImported, onDataCleared, onChildAdded }) => {
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
@@ -32,6 +34,16 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
 
   // Form state for manual credentials
   const [emailInput, setEmailInput] = useState('');
+
+  // Delete all data state
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Add child form state
+  const [showAddChild, setShowAddChild] = useState(false);
+  const [newChildName, setNewChildName] = useState('');
+  const [newChildSchool, setNewChildSchool] = useState('');
+  const [newChildEmailRules, setNewChildEmailRules] = useState('');
+  const [isAddingChild, setIsAddingChild] = useState(false);
 
   useEffect(() => {
     initGmail();
@@ -198,6 +210,60 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     }
   };
 
+  const handleDeleteAllData = async () => {
+    if (!confirm('⚠️ WARNING: This will permanently delete ALL your data including children, emails, events, and actions. This cannot be undone. Are you sure?')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await supabaseService.deleteAllData();
+      alert('All data has been deleted successfully!');
+      onDataCleared?.();
+      window.location.reload(); // Refresh to clear local state
+    } catch (e: any) {
+      alert('Error deleting data: ' + e.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleAddChild = async () => {
+    if (!newChildName.trim()) {
+      alert('Please enter a child name.');
+      return;
+    }
+
+    setIsAddingChild(true);
+    try {
+      const emailRulesArray = newChildEmailRules
+        .split(',')
+        .map(r => r.trim())
+        .filter(r => r.length > 0);
+
+      const newChild = await supabaseService.createChild({
+        name: newChildName.trim(),
+        schoolName: newChildSchool.trim(),
+        color: ['blue', 'green', 'purple', 'orange', 'pink'][Math.floor(Math.random() * 5)],
+        avatarUrl: '',
+        emailRules: emailRulesArray
+      });
+
+      alert(`Child "${newChild.name}" added successfully!`);
+      onChildAdded?.(newChild);
+
+      // Reset form
+      setNewChildName('');
+      setNewChildSchool('');
+      setNewChildEmailRules('');
+      setShowAddChild(false);
+    } catch (e: any) {
+      alert('Error adding child: ' + e.message);
+    } finally {
+      setIsAddingChild(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -319,6 +385,70 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
           </div>
         </div>
 
+        {/* Add New Child */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <UserPlus className="text-green-600" />
+                Add New Child
+              </h3>
+              <p className="text-sm text-slate-500 mt-1">Add a child to track their school communications.</p>
+            </div>
+            <button
+              onClick={() => setShowAddChild(!showAddChild)}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+            >
+              <Plus size={18} />
+              {showAddChild ? 'Cancel' : 'Add Child'}
+            </button>
+          </div>
+
+          {showAddChild && (
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Child's Name *</label>
+                <input
+                  type="text"
+                  value={newChildName}
+                  onChange={(e) => setNewChildName(e.target.value)}
+                  placeholder="e.g., Emma"
+                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">School Name</label>
+                <input
+                  type="text"
+                  value={newChildSchool}
+                  onChange={(e) => setNewChildSchool(e.target.value)}
+                  placeholder="e.g., Greenwood Primary School"
+                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">School Email Addresses</label>
+                <input
+                  type="text"
+                  value={newChildEmailRules}
+                  onChange={(e) => setNewChildEmailRules(e.target.value)}
+                  placeholder="e.g., office@school.com, teacher@school.com"
+                  className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all"
+                />
+                <p className="text-xs text-slate-500 mt-1">Separate multiple emails with commas. These are used to filter which emails to sync.</p>
+              </div>
+              <button
+                onClick={handleAddChild}
+                disabled={isAddingChild || !newChildName.trim()}
+                className="w-full bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isAddingChild ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
+                {isAddingChild ? 'Adding...' : 'Save Child'}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Preferences Placeholder */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 opacity-60">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Notification Preferences</h3>
@@ -334,26 +464,22 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
           </div>
         </div>
 
-        {/* Database Management */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-4">Database Management</h3>
+        {/* Data Management */}
+        <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
+            <Trash2 className="text-red-600" />
+            Data Management
+          </h3>
           <p className="text-sm text-slate-500 mb-4">
-            Populate your database with sample data. This is useful for testing.
+            Delete all your data including children, emails, events, and actions. Use this to start fresh.
           </p>
           <button
-            onClick={async () => {
-              if (confirm('This will add sample data to your database. Continue?')) {
-                try {
-                  await supabaseService.seedData(CHILDREN_MOCK, EVENTS_MOCK, ACTIONS_MOCK, EMAILS_MOCK);
-                  alert('Data seeded successfully!');
-                } catch (e: any) {
-                  alert('Error seeding data: ' + e.message);
-                }
-              }
-            }}
-            className="px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition-colors"
+            onClick={handleDeleteAllData}
+            disabled={isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
           >
-            Seed Database with Mock Data
+            {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+            {isDeleting ? 'Deleting...' : 'Delete All Data & Start Fresh'}
           </button>
         </div>
       </div>
@@ -362,3 +488,4 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
 };
 
 export default Settings;
+

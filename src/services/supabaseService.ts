@@ -289,6 +289,41 @@ export const supabaseService = {
         return mapActionFromDb(data);
     },
 
+    // Delete All Data
+    async deleteAllData(): Promise<void> {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
+        // Delete in order to respect foreign key constraints
+        // 1. Actions (references emails and children)
+        const { error: actionsError } = await supabase
+            .from('actions')
+            .delete()
+            .eq('user_id', user.id);
+        if (actionsError) throw actionsError;
+
+        // 2. Events (references children)
+        const { error: eventsError } = await supabase
+            .from('events')
+            .delete()
+            .eq('user_id', user.id);
+        if (eventsError) throw eventsError;
+
+        // 3. Emails (references children)
+        const { error: emailsError } = await supabase
+            .from('emails')
+            .delete()
+            .eq('user_id', user.id);
+        if (emailsError) throw emailsError;
+
+        // 4. Children (no dependencies)
+        const { error: childrenError } = await supabase
+            .from('children')
+            .delete()
+            .eq('user_id', user.id);
+        if (childrenError) throw childrenError;
+    },
+
     // Seed Data
     async seedData(children: any[], events: any[], actions: any[], emails: any[]) {
         const { data: { user } } = await supabase.auth.getUser();
