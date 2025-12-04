@@ -6,6 +6,7 @@ import Timeline from './components/Timeline';
 import Actions from './components/Actions';
 import Inbox from './components/Inbox';
 import Children from './components/Children';
+import Settings from './components/Settings';
 import { CHILDREN_MOCK, EMAILS_MOCK, EVENTS_MOCK, ACTIONS_MOCK } from './constants';
 import { Email, SchoolEvent, ActionItem } from './types';
 
@@ -30,6 +31,22 @@ const App: React.FC = () => {
     setEmails(prev => [newEmail, ...prev]);
     setEvents(prev => [...prev, ...newEvents]);
     setActions(prev => [...prev, ...newActions]);
+  };
+
+  // Handler for bulk import from Gmail
+  const handleEmailsImported = (importedEmails: Email[]) => {
+    // Filter out duplicates based on ID if necessary, or just prepend
+    // For now, we prepend and let React key warnings handle dupes if any (simple approach)
+    // A better approach is to check IDs:
+    const existingIds = new Set(emails.map(e => e.id));
+    const uniqueNewEmails = importedEmails.filter(e => !existingIds.has(e.id));
+    
+    if (uniqueNewEmails.length > 0) {
+      setEmails(prev => [...uniqueNewEmails, ...prev]);
+      alert(`Successfully imported ${uniqueNewEmails.length} new emails from Gmail.`);
+    } else {
+      alert("No new emails found or all emails already imported.");
+    }
   };
 
   return (
@@ -72,9 +89,7 @@ const App: React.FC = () => {
           } />
 
           <Route path="/settings" element={
-            <div className="flex flex-col items-center justify-center h-96 text-slate-400">
-               <p>Settings placeholder</p>
-            </div>
+            <Settings onEmailsImported={handleEmailsImported} />
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />
