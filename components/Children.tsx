@@ -143,9 +143,13 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
       if (onUpdateChildren) {
         onUpdateChildren(childrenList.filter(c => c.id !== child.id));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting child:', error);
-      alert('Failed to delete child. Please try again.');
+      if (error?.message?.includes('not authenticated') || error?.code === 'PGRST301') {
+        alert('You must be logged in to delete children. Please sign in first.');
+      } else {
+        alert('Failed to delete child. Please try again.');
+      }
     }
   };
 

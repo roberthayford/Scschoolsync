@@ -49,11 +49,11 @@ const AppContent: React.FC = () => {
 
       fetchData();
     } else {
-      // Fallback to mock data for unauthenticated users
-      setChildrenList(CHILDREN_MOCK);
-      setEvents(EVENTS_MOCK);
-      setActions(ACTIONS_MOCK);
-      setEmails(EMAILS_MOCK);
+      // Clear data when not authenticated
+      setChildrenList([]);
+      setEvents([]);
+      setActions([]);
+      setEmails([]);
     }
   }, [session]);
 
