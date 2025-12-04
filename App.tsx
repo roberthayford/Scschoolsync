@@ -48,6 +48,12 @@ const AppContent: React.FC = () => {
       };
 
       fetchData();
+    } else {
+      // Fallback to mock data for unauthenticated users
+      setChildrenList(CHILDREN_MOCK);
+      setEvents(EVENTS_MOCK);
+      setActions(ACTIONS_MOCK);
+      setEmails(EMAILS_MOCK);
     }
   }, [session]);
 
@@ -96,9 +102,9 @@ const AppContent: React.FC = () => {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  if (!session) {
-    return <Login />;
-  }
+  // if (!session) {
+  //   return <Login />;
+  // }
 
   return (
     <Router>

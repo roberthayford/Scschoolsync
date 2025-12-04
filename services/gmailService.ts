@@ -3,8 +3,8 @@ import { Email } from '../types';
 import { format, subMonths } from 'date-fns';
 
 // Mutable variables to allow runtime configuration
-let CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''; 
-let API_KEY = process.env.GOOGLE_API_KEY || ''; 
+let CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+let API_KEY = import.meta.env.VITE_GOOGLE_API_KEY || '';
 
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
 const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
@@ -63,7 +63,7 @@ const decodeEmailBody = (data: string) => {
 
 const extractEmailBody = (payload: any): string => {
   if (!payload) return "";
-  
+
   if (payload.body && payload.body.data) {
     return decodeEmailBody(payload.body.data);
   }
@@ -79,7 +79,7 @@ const extractEmailBody = (payload: any): string => {
       const html = decodeEmailBody(htmlPart.body.data);
       return html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
     }
-    
+
     for (const part of payload.parts) {
       if (part.parts) {
         const nested = extractEmailBody(part);
@@ -103,31 +103,31 @@ export const initializeGmailApi = async (): Promise<boolean> => {
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
-        console.error("Google Identity Services script timed out.");
-        resolve(false);
-    }, 5000); 
+      console.error("Google Identity Services script timed out.");
+      resolve(false);
+    }, 5000);
 
     const checkLibs = setInterval(() => {
       if (window.gapi && window.google) {
         clearInterval(checkLibs);
         clearTimeout(timeout);
-        
+
         window.gapi.load('client', async () => {
           try {
             await window.gapi.client.init({
-                apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC],
+              apiKey: API_KEY,
+              discoveryDocs: [DISCOVERY_DOC],
             });
-            
+
             const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
             if (storedToken) {
-                try {
-                  const token = JSON.parse(storedToken);
-                  window.gapi.client.setToken(token);
-                } catch (e) {
-                  console.error("Error restoring token", e);
-                  localStorage.removeItem(TOKEN_STORAGE_KEY);
-                }
+              try {
+                const token = JSON.parse(storedToken);
+                window.gapi.client.setToken(token);
+              } catch (e) {
+                console.error("Error restoring token", e);
+                localStorage.removeItem(TOKEN_STORAGE_KEY);
+              }
             }
 
             gapiInited = true;
@@ -139,15 +139,15 @@ export const initializeGmailApi = async (): Promise<boolean> => {
         });
 
         if (window.google.accounts && window.google.accounts.oauth2) {
-            tokenClient = window.google.accounts.oauth2.initTokenClient({
-              client_id: CLIENT_ID,
-              scope: SCOPES,
-              callback: '', // defined later
-            });
-            gisInited = true;
-            maybeEnableButtons();
+          tokenClient = window.google.accounts.oauth2.initTokenClient({
+            client_id: CLIENT_ID,
+            scope: SCOPES,
+            callback: '', // defined later
+          });
+          gisInited = true;
+          maybeEnableButtons();
         } else {
-             console.error("Google Accounts OAuth2 not found");
+          console.error("Google Accounts OAuth2 not found");
         }
       }
     }, 100);
@@ -160,7 +160,7 @@ export const initializeGmailApi = async (): Promise<boolean> => {
   });
 };
 
-export const handleAuthClick = async (): Promise<boolean> => {
+export const handleAuthClick = async (emailHint?: string): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     if (!tokenClient) return reject("Token client not initialized");
 
@@ -169,7 +169,7 @@ export const handleAuthClick = async (): Promise<boolean> => {
         reject(resp);
         return;
       }
-      
+
       const token = window.gapi.client.getToken();
       if (token) {
         localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
@@ -182,9 +182,9 @@ export const handleAuthClick = async (): Promise<boolean> => {
     };
 
     if (window.gapi.client.getToken() === null) {
-      tokenClient.requestAccessToken({ prompt: 'consent' });
+      tokenClient.requestAccessToken({ prompt: 'consent', login_hint: emailHint });
     } else {
-      tokenClient.requestAccessToken({ prompt: '' });
+      tokenClient.requestAccessToken({ prompt: '', login_hint: emailHint });
     }
   });
 };
@@ -215,54 +215,54 @@ export const getGmailUserProfile = async () => {
 };
 
 const processMessages = async (messages: any[]): Promise<Email[]> => {
-    if (!messages || messages.length === 0) return [];
-    
-    const detailedEmails: Email[] = [];
+  if (!messages || messages.length === 0) return [];
 
-    for (const msg of messages) {
-      try {
-        const details = await window.gapi.client.gmail.users.messages.get({
-          userId: 'me',
-          id: msg.id,
-          format: 'full' 
-        });
+  const detailedEmails: Email[] = [];
 
-        const result = details.result;
-        const headers = result.payload.headers;
-        
-        const subject = headers.find((h: any) => h.name === 'Subject')?.value || '(No Subject)';
-        const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
-        const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
-        const snippet = result.snippet;
-        
-        const bodyContent = extractEmailBody(result.payload);
+  for (const msg of messages) {
+    try {
+      const details = await window.gapi.client.gmail.users.messages.get({
+        userId: 'me',
+        id: msg.id,
+        format: 'full'
+      });
 
-        detailedEmails.push({
-          id: result.id,
-          subject: subject,
-          sender: from,
-          preview: snippet,
-          body: bodyContent || snippet, 
-          receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
-          isProcessed: false,
-        });
-      } catch (innerErr) {
-        console.warn(`Failed to fetch email ${msg.id}`, innerErr);
-      }
+      const result = details.result;
+      const headers = result.payload.headers;
+
+      const subject = headers.find((h: any) => h.name === 'Subject')?.value || '(No Subject)';
+      const from = headers.find((h: any) => h.name === 'From')?.value || 'Unknown Sender';
+      const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
+      const snippet = result.snippet;
+
+      const bodyContent = extractEmailBody(result.payload);
+
+      detailedEmails.push({
+        id: result.id,
+        subject: subject,
+        sender: from,
+        preview: snippet,
+        body: bodyContent || snippet,
+        receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
+        isProcessed: false,
+      });
+    } catch (innerErr) {
+      console.warn(`Failed to fetch email ${msg.id}`, innerErr);
     }
-    return detailedEmails;
+  }
+  return detailedEmails;
 };
 
 export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]> => {
   try {
     const startDate = subMonths(new Date(), monthsBack);
     const dateQuery = format(startDate, 'yyyy/MM/dd');
-    const query = `after:${dateQuery}`; 
+    const query = `after:${dateQuery}`;
 
     const response = await window.gapi.client.gmail.users.messages.list({
       userId: 'me',
       q: query,
-      maxResults: 50 
+      maxResults: 50
     });
 
     return processMessages(response.result.messages);
@@ -276,7 +276,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
 export const searchEmails = async (terms: string[], monthsBack: number): Promise<Email[]> => {
   try {
     if (terms.length === 0) return [];
-    
+
     const termQuery = terms.map(t => `from:${t}`).join(' OR ');
     const startDate = subMonths(new Date(), monthsBack);
     const dateQuery = format(startDate, 'yyyy/MM/dd');

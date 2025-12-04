@@ -29,9 +29,7 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
   const [error, setError] = useState<string | null>(null);
 
   // Form state for manual credentials
-  const [clientIdInput, setClientIdInput] = useState('');
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [showCredsForm, setShowCredsForm] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
 
   useEffect(() => {
     initGmail();
@@ -44,11 +42,11 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
       setIsGapiReady(ready);
 
       // If not ready and we don't have creds, show form
-      if (!ready && !hasValidCredentials()) {
-        setShowCredsForm(true);
-      } else {
-        setShowCredsForm(false);
-      }
+      // if (!ready && !hasValidCredentials()) {
+      //   setShowCredsForm(true);
+      // } else {
+      //   setShowCredsForm(false);
+      // }
 
       if (ready && isUserSignedIn()) {
         try {
@@ -69,19 +67,19 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     }
   };
 
-  const handleSaveCredentials = async () => {
-    if (!clientIdInput || !apiKeyInput) {
-      setError("Please provide both Client ID and API Key");
-      return;
-    }
-    updateGoogleCredentials(clientIdInput.trim(), apiKeyInput.trim());
-    await initGmail();
-  };
+  // const handleSaveCredentials = async () => {
+  //   if (!clientIdInput || !apiKeyInput) {
+  //     setError("Please provide both Client ID and API Key");
+  //     return;
+  //   }
+  //   updateGoogleCredentials(clientIdInput.trim(), apiKeyInput.trim());
+  //   await initGmail();
+  // };
 
   const handleConnect = async () => {
     try {
       setError(null);
-      await handleAuthClick();
+      await handleAuthClick(emailInput);
 
       const profile = await getGmailUserProfile();
       setUserProfile(profile);
@@ -196,69 +194,42 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
                   </div>
                 )}
 
-                {/* Configuration Form for missing creds */}
-                {showCredsForm && (
-                  <div className="w-full max-w-md bg-slate-50 p-4 rounded-xl border border-slate-200 text-left mt-4">
-                    <div className="flex items-center gap-2 text-orange-600 mb-3">
-                      <AlertCircle size={16} />
-                      <span className="text-sm font-bold">Missing Configuration</span>
+                {/* Email Input for Connection */}
+                {!isConnected && (
+                  <div className="w-full max-w-md space-y-4 mt-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Gmail Address</label>
+                      <input
+                        type="email"
+                        value={emailInput}
+                        onChange={(e) => setEmailInput(e.target.value)}
+                        placeholder="your.email@gmail.com"
+                        className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all"
+                      />
+                      <p className="text-xs text-slate-500 mt-1">Enter your email to help us connect to the right account.</p>
                     </div>
-                    <p className="text-xs text-slate-600 mb-4">
-                      The app needs a Google Cloud Client ID and API Key to connect. Please enter them below.
-                    </p>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Google Client ID</label>
-                        <input
-                          type="text"
-                          value={clientIdInput}
-                          onChange={(e) => setClientIdInput(e.target.value)}
-                          placeholder="apps.googleusercontent.com"
-                          className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">Google API Key</label>
-                        <input
-                          type="text"
-                          value={apiKeyInput}
-                          onChange={(e) => setApiKeyInput(e.target.value)}
-                          placeholder="AIzaSy..."
-                          className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-500"
-                        />
-                      </div>
-                      <button
-                        onClick={handleSaveCredentials}
-                        className="w-full bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-900 flex items-center justify-center gap-2"
-                      >
-                        <Save size={14} /> Save Configuration
-                      </button>
-                    </div>
-                  </div>
-                )}
 
-                {/* Connect Button (Only shown if configured or checking) */}
-                {!showCredsForm && (
-                  <button
-                    onClick={handleConnect}
-                    disabled={isInitializing || !isGapiReady}
-                    className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isInitializing ? (
-                      <>
-                        <Loader2 className="animate-spin" size={18} /> Loading Client...
-                      </>
-                    ) : isGapiReady ? (
-                      <>
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
-                        Connect with Google
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle size={18} /> Service Unavailable
-                      </>
-                    )}
-                  </button>
+                    <button
+                      onClick={handleConnect}
+                      disabled={isInitializing || !isGapiReady || !emailInput}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isInitializing ? (
+                        <>
+                          <Loader2 className="animate-spin" size={18} /> Loading Client...
+                        </>
+                      ) : isGapiReady ? (
+                        <>
+                          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
+                          Connect with Google
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle size={18} /> Service Unavailable
+                        </>
+                      )}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
