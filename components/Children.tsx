@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Child, Email } from '../types';
-import { Plus, Edit2, Trash2, Mail, School, X, Save, RefreshCw, Loader2, Calendar } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, School, X, Save, RefreshCw, Loader2, Calendar, CheckCircle2 } from 'lucide-react';
 import { searchEmails, isUserSignedIn } from '../services/gmailService';
 
 interface ChildrenProps {
@@ -15,6 +15,9 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [showSyncOptions, setShowSyncOptions] = useState(false);
+  
+  // New state for the Save & Sync prompt flow
+  const [showSaveSyncPrompt, setShowSaveSyncPrompt] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<Child>>({
@@ -32,6 +35,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setEditingId(child.id);
     setIsModalOpen(true);
     setShowSyncOptions(false);
+    setShowSaveSyncPrompt(false);
   };
 
   const handleAdd = () => {
@@ -45,11 +49,21 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setEditingId(null);
     setIsModalOpen(true);
     setShowSyncOptions(false);
+    setShowSaveSyncPrompt(false);
   };
 
-  const handleSave = () => {
+  const handleInitialSave = () => {
     if (!formData.name || !formData.schoolName) return;
 
+    // If adding a new child (not editing) and they have email rules, prompt for sync
+    if (!editingId && formData.emailRules && formData.emailRules.length > 0) {
+      setShowSaveSyncPrompt(true);
+    } else {
+      finalizeSave();
+    }
+  };
+
+  const finalizeSave = () => {
     if (onUpdateChildren) {
       if (editingId) {
         // Update existing
@@ -61,7 +75,41 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
         onUpdateChildren([...childrenList, newChild]);
       }
     }
+    closeModal();
+  };
+
+  const closeModal = () => {
     setIsModalOpen(false);
+    setShowSaveSyncPrompt(false);
+    setIsSyncing(false);
+  };
+
+  const handleSyncAndSave = async (months: number | null) => {
+    // If null, user chose to skip sync
+    if (months === null) {
+      finalizeSave();
+      return;
+    }
+
+    if (!isUserSignedIn()) {
+      alert("Please connect your Gmail account in Settings to sync history. Profile will be saved without sync.");
+      finalizeSave();
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const emails = await searchEmails(formData.emailRules || [], months);
+      if (emails.length > 0) {
+        onEmailsImported(emails);
+      }
+    } catch (e) {
+      console.error("Sync failed during save", e);
+      // We continue to save even if sync fails
+    } finally {
+      setIsSyncing(false);
+      finalizeSave();
+    }
   };
 
   const addRule = () => {
@@ -75,7 +123,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setFormData(prev => ({ ...prev, emailRules: prev.emailRules?.filter(r => r !== rule) }));
   };
 
-  const handleSyncHistory = async (months: number) => {
+  const handleManualSyncHistory = async (months: number) => {
     if (!isUserSignedIn()) {
       alert("Please connect your Gmail account in Settings first.");
       return;
@@ -188,135 +236,187 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
                     <h3 className="text-lg font-bold text-slate-900">
-                        {editingId ? 'Edit Profile' : 'Add Child'}
+                        {showSaveSyncPrompt ? 'Sync History?' : (editingId ? 'Edit Profile' : 'Add Child')}
                     </h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                    <button onClick={closeModal} className="text-slate-400 hover:text-slate-600">
                         <X size={20} />
                     </button>
                 </div>
 
-                <div className="p-6 overflow-y-auto space-y-6">
-                    {/* Basic Info */}
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Child Name</label>
-                            <input 
-                                type="text" 
-                                value={formData.name}
-                                onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
-                                placeholder="e.g. Emma"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Primary School Name</label>
-                            <input 
-                                type="text" 
-                                value={formData.schoolName}
-                                onChange={e => setFormData(prev => ({ ...prev, schoolName: e.target.value }))}
-                                className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
-                                placeholder="e.g. St Mary's Primary"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">Color Tag</label>
-                            <div className="flex gap-2">
-                                {colors.map(c => (
-                                    <button
-                                        key={c}
-                                        onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                                        className={`w-8 h-8 rounded-full bg-${c}-500 ${formData.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
-                                    />
-                                ))}
+                {showSaveSyncPrompt ? (
+                  /* STEP 2: Sync Prompt View */
+                  <div className="p-6 flex flex-col items-center text-center animate-in fade-in slide-in-from-right-4 duration-300">
+                     <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-4">
+                        {isSyncing ? <Loader2 className="animate-spin text-indigo-600" size={32} /> : <RefreshCw className="text-indigo-600" size={32} />}
+                     </div>
+                     <h4 className="text-xl font-bold text-slate-900 mb-2">Scan for past emails?</h4>
+                     <p className="text-slate-500 mb-8 max-w-xs">
+                       We can check your inbox for recent emails matching {formData.name}'s school sources to populate your timeline immediately.
+                     </p>
+                     
+                     {isSyncing ? (
+                       <div className="flex flex-col items-center gap-2 mb-4">
+                         <span className="text-indigo-600 font-medium">Scanning your inbox...</span>
+                         <span className="text-xs text-slate-400">This might take a moment</span>
+                       </div>
+                     ) : (
+                       <div className="w-full space-y-3">
+                          <button 
+                            onClick={() => handleSyncAndSave(1)}
+                            className="w-full py-3 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors border border-indigo-200"
+                          >
+                            <Calendar size={18} /> Sync Last 1 Month
+                          </button>
+                          <button 
+                            onClick={() => handleSyncAndSave(3)}
+                            className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 shadow-sm"
+                          >
+                            <Calendar size={18} /> Sync Last 3 Months
+                          </button>
+                          <button 
+                            onClick={() => handleSyncAndSave(6)}
+                            className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-xl flex items-center justify-center gap-2 transition-colors border border-slate-200 shadow-sm"
+                          >
+                            <Calendar size={18} /> Sync Last 6 Months
+                          </button>
+                       </div>
+                     )}
+                     
+                     {!isSyncing && (
+                       <button 
+                         onClick={() => handleSyncAndSave(null)}
+                         className="mt-6 text-slate-400 hover:text-slate-600 text-sm font-medium"
+                       >
+                         No thanks, just save
+                       </button>
+                     )}
+                  </div>
+                ) : (
+                  /* STEP 1: Edit Form View */
+                  <>
+                    <div className="p-6 overflow-y-auto space-y-6">
+                        {/* Basic Info */}
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Child Name</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.name}
+                                    onChange={e => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
+                                    placeholder="e.g. Emma"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">Primary School Name</label>
+                                <input 
+                                    type="text" 
+                                    value={formData.schoolName}
+                                    onChange={e => setFormData(prev => ({ ...prev, schoolName: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none"
+                                    placeholder="e.g. St Mary's Primary"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Color Tag</label>
+                                <div className="flex gap-2">
+                                    {colors.map(c => (
+                                        <button
+                                            key={c}
+                                            onClick={() => setFormData(prev => ({ ...prev, color: c }))}
+                                            className={`w-8 h-8 rounded-full bg-${c}-500 ${formData.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="border-t border-slate-100 pt-6">
-                        <div className="flex justify-between items-center mb-3">
-                            <label className="block text-sm font-medium text-slate-900">Email Sources</label>
+                        <div className="border-t border-slate-100 pt-6">
+                            <div className="flex justify-between items-center mb-3">
+                                <label className="block text-sm font-medium text-slate-900">Email Sources</label>
+                                
+                                {/* Manual Sync History Button (Only for existing children) */}
+                                {editingId && (
+                                  <div className="relative">
+                                      {!showSyncOptions ? (
+                                          <button 
+                                              onClick={() => setShowSyncOptions(true)}
+                                              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md"
+                                          >
+                                              <RefreshCw size={12} /> Sync History
+                                          </button>
+                                      ) : (
+                                          <div className="absolute right-0 top-0 bg-white border border-slate-200 shadow-lg rounded-xl p-2 z-10 w-48 animate-in fade-in slide-in-from-top-1">
+                                              <div className="text-xs font-bold text-slate-400 px-2 pb-1 mb-1 border-b border-slate-100">Fetch emails from...</div>
+                                              <button onClick={() => handleManualSyncHistory(1)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
+                                                  <Calendar size={12} /> Last 1 Month
+                                              </button>
+                                              <button onClick={() => handleManualSyncHistory(3)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
+                                                  <Calendar size={12} /> Last 3 Months
+                                              </button>
+                                              <button onClick={() => handleManualSyncHistory(6)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
+                                                  <Calendar size={12} /> Last 6 Months
+                                              </button>
+                                              <button onClick={() => setShowSyncOptions(false)} className="w-full text-center mt-1 text-xs text-slate-400 hover:text-slate-600">Cancel</button>
+                                          </div>
+                                      )}
+                                  </div>
+                                )}
+                            </div>
                             
-                            {/* Sync History Button */}
-                            <div className="relative">
-                                {!showSyncOptions ? (
-                                    <button 
-                                        onClick={() => setShowSyncOptions(true)}
-                                        className="text-xs font-medium text-indigo-600 hover:text-indigo-700 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-md"
-                                    >
-                                        <RefreshCw size={12} /> Sync History
-                                    </button>
-                                ) : (
-                                    <div className="absolute right-0 top-0 bg-white border border-slate-200 shadow-lg rounded-xl p-2 z-10 w-48 animate-in fade-in slide-in-from-top-1">
-                                        <div className="text-xs font-bold text-slate-400 px-2 pb-1 mb-1 border-b border-slate-100">Fetch emails from...</div>
-                                        <button onClick={() => handleSyncHistory(1)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
-                                            <Calendar size={12} /> Last 1 Month
+                            <p className="text-xs text-slate-500 mb-4">Add school domains (e.g., <code className="bg-slate-100 px-1 rounded">school.com</code>) or specific sender addresses (e.g., <code className="bg-slate-100 px-1 rounded">coach@club.com</code>).</p>
+
+                            <div className="flex gap-2 mb-3">
+                                <input 
+                                    type="text"
+                                    value={newRule}
+                                    onChange={e => setNewRule(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && addRule()}
+                                    placeholder="sender@email.com or @domain.com"
+                                    className="flex-1 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
+                                />
+                                <button 
+                                    onClick={addRule}
+                                    disabled={!newRule}
+                                    className="bg-slate-100 text-slate-600 px-3 rounded-lg hover:bg-slate-200 disabled:opacity-50"
+                                >
+                                    <Plus size={18} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-2 max-h-40 overflow-y-auto">
+                                {formData.emailRules?.map((rule, idx) => (
+                                    <div key={idx} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
+                                        <span className="text-sm text-slate-700 font-mono">{rule}</span>
+                                        <button onClick={() => removeRule(rule)} className="text-slate-400 hover:text-red-500">
+                                            <X size={14} />
                                         </button>
-                                        <button onClick={() => handleSyncHistory(3)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
-                                            <Calendar size={12} /> Last 3 Months
-                                        </button>
-                                        <button onClick={() => handleSyncHistory(6)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
-                                            <Calendar size={12} /> Last 6 Months
-                                        </button>
-                                        <button onClick={() => handleSyncHistory(12)} className="w-full text-left px-2 py-1.5 text-sm hover:bg-slate-50 rounded flex items-center gap-2 text-slate-700">
-                                            <Calendar size={12} /> Last 1 Year
-                                        </button>
-                                        <button onClick={() => setShowSyncOptions(false)} className="w-full text-center mt-1 text-xs text-slate-400 hover:text-slate-600">Cancel</button>
                                     </div>
+                                ))}
+                                {formData.emailRules?.length === 0 && (
+                                    <p className="text-sm text-slate-400 italic text-center py-2">No email sources added yet.</p>
                                 )}
                             </div>
                         </div>
-                        
-                        <p className="text-xs text-slate-500 mb-4">Add school domains (e.g., <code className="bg-slate-100 px-1 rounded">school.com</code>) or specific sender addresses (e.g., <code className="bg-slate-100 px-1 rounded">coach@club.com</code>).</p>
-
-                        <div className="flex gap-2 mb-3">
-                            <input 
-                                type="text"
-                                value={newRule}
-                                onChange={e => setNewRule(e.target.value)}
-                                onKeyDown={e => e.key === 'Enter' && addRule()}
-                                placeholder="sender@email.com or @domain.com"
-                                className="flex-1 px-3 py-2 bg-white text-slate-900 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 outline-none"
-                            />
-                            <button 
-                                onClick={addRule}
-                                disabled={!newRule}
-                                className="bg-slate-100 text-slate-600 px-3 rounded-lg hover:bg-slate-200 disabled:opacity-50"
-                            >
-                                <Plus size={18} />
-                            </button>
-                        </div>
-
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {formData.emailRules?.map((rule, idx) => (
-                                <div key={idx} className="flex items-center justify-between bg-slate-50 px-3 py-2 rounded-lg border border-slate-100">
-                                    <span className="text-sm text-slate-700 font-mono">{rule}</span>
-                                    <button onClick={() => removeRule(rule)} className="text-slate-400 hover:text-red-500">
-                                        <X size={14} />
-                                    </button>
-                                </div>
-                            ))}
-                            {formData.emailRules?.length === 0 && (
-                                <p className="text-sm text-slate-400 italic text-center py-2">No email sources added yet.</p>
-                            )}
-                        </div>
                     </div>
-                </div>
 
-                <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
-                   <div className="flex items-center gap-2">
-                      {isSyncing && <span className="text-xs text-indigo-600 flex items-center gap-1"><Loader2 className="animate-spin" size={12} /> Syncing history...</span>}
-                   </div>
-                   <div className="flex gap-3">
-                        <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:text-slate-900">Cancel</button>
-                        <button 
-                            onClick={handleSave}
-                            disabled={!formData.name || !formData.schoolName}
-                            className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                        >
-                            Save Profile
-                        </button>
-                   </div>
-                </div>
+                    <div className="p-5 border-t border-slate-100 bg-slate-50 flex justify-between items-center">
+                       <div className="flex items-center gap-2">
+                          {isSyncing && !showSaveSyncPrompt && <span className="text-xs text-indigo-600 flex items-center gap-1"><Loader2 className="animate-spin" size={12} /> Syncing...</span>}
+                       </div>
+                       <div className="flex gap-3">
+                            <button onClick={closeModal} className="px-4 py-2 text-slate-600 hover:text-slate-900">Cancel</button>
+                            <button 
+                                onClick={handleInitialSave}
+                                disabled={!formData.name || !formData.schoolName}
+                                className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-medium shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                            >
+                                {editingId ? 'Save Profile' : 'Save & Continue'}
+                            </button>
+                       </div>
+                    </div>
+                  </>
+                )}
             </div>
         </div>
       )}
