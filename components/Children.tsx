@@ -117,12 +117,15 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
           onUpdateChildren([...childrenList, newChild]);
         }
       }
-    } catch (error) {
+      closeModal();
+    } catch (error: any) {
       console.error('Error saving child:', error);
-      alert('Failed to save child. Please try again.');
-      return;
+      if (error?.message?.includes('not authenticated') || error?.message?.includes('User not authenticated')) {
+        alert('You must be logged in to save children. Please sign in first.');
+      } else {
+        alert('Failed to save child. Please try again.');
+      }
     }
-    closeModal();
   };
 
   const closeModal = () => {
