@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
@@ -8,13 +9,13 @@ import Inbox from './components/Inbox';
 import Children from './components/Children';
 import Settings from './components/Settings';
 import { CHILDREN_MOCK, EMAILS_MOCK, EVENTS_MOCK, ACTIONS_MOCK } from './constants';
-import { Email, SchoolEvent, ActionItem } from './types';
+import { Email, SchoolEvent, ActionItem, Child } from './types';
 
 const App: React.FC = () => {
   // Global State
   // In a real app, this would be managed by Context API, Redux, or Zustand
   // and persisted to a database.
-  const [childrenList] = useState(CHILDREN_MOCK);
+  const [childrenList, setChildrenList] = useState<Child[]>(CHILDREN_MOCK);
   const [emails, setEmails] = useState<Email[]>(EMAILS_MOCK);
   const [events, setEvents] = useState<SchoolEvent[]>(EVENTS_MOCK);
   const [actions, setActions] = useState<ActionItem[]>(ACTIONS_MOCK);
@@ -43,10 +44,11 @@ const App: React.FC = () => {
     
     if (uniqueNewEmails.length > 0) {
       setEmails(prev => [...uniqueNewEmails, ...prev]);
-      alert(`Successfully imported ${uniqueNewEmails.length} new emails from Gmail.`);
-    } else {
-      alert("No new emails found or all emails already imported.");
     }
+  };
+
+  const handleUpdateChildren = (updatedList: Child[]) => {
+    setChildrenList(updatedList);
   };
 
   return (
@@ -77,7 +79,11 @@ const App: React.FC = () => {
           } />
 
           <Route path="/children" element={
-            <Children childrenList={childrenList} />
+            <Children 
+              childrenList={childrenList} 
+              onUpdateChildren={handleUpdateChildren}
+              onEmailsImported={handleEmailsImported}
+            />
           } />
 
           <Route path="/inbox" element={

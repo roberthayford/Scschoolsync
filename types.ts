@@ -21,6 +21,7 @@ export interface Child {
   schoolName: string;
   color: string; // Tailwind class component e.g., 'blue'
   avatarUrl: string;
+  emailRules: string[]; // Array of domains (e.g., 'school.com') or emails ('coach@gym.com')
 }
 
 export interface SchoolEvent {

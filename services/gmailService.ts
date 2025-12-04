@@ -183,28 +183,9 @@ export const getGmailUserProfile = async () => {
   }
 };
 
-export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]> => {
-  try {
-    // Calculate date for "past 2 months"
-    const startDate = subMonths(new Date(), monthsBack);
-    // Gmail requires YYYY/MM/DD format
-    const dateQuery = format(startDate, 'yyyy/MM/dd');
-    const query = `after:${dateQuery}`; // Gmail API query format
-
-    // 1. List Messages
-    const response = await window.gapi.client.gmail.users.messages.list({
-      userId: 'me',
-      q: query,
-      maxResults: 50 // Fetch up to 50 emails to prevent system overload
-    });
-
-    const messages = response.result.messages;
-    if (!messages || messages.length === 0) {
-      return [];
-    }
-
-    // 2. Fetch Details for each message
-    // Note: In production, use batch requests for performance
+const processMessages = async (messages: any[]): Promise<Email[]> => {
+    if (!messages || messages.length === 0) return [];
+    
     const detailedEmails: Email[] = [];
 
     for (const msg of messages) {
@@ -212,7 +193,7 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
         const details = await window.gapi.client.gmail.users.messages.get({
           userId: 'me',
           id: msg.id,
-          format: 'full' // 'full' to get headers like Subject, From, and body payload
+          format: 'full' 
         });
 
         const result = details.result;
@@ -223,29 +204,70 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
         const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
         const snippet = result.snippet;
         
-        // Extract body
         const bodyContent = extractEmailBody(result.payload);
 
-        // Basic mapping
         detailedEmails.push({
           id: result.id,
           subject: subject,
           sender: from,
           preview: snippet,
-          body: bodyContent || snippet, // Fallback to snippet if body extraction fails
+          body: bodyContent || snippet, 
           receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
           isProcessed: false,
-          // childId, category, summary will be filled by Gemini later
         });
       } catch (innerErr) {
         console.warn(`Failed to fetch email ${msg.id}`, innerErr);
       }
     }
-
     return detailedEmails;
+};
+
+export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]> => {
+  try {
+    const startDate = subMonths(new Date(), monthsBack);
+    const dateQuery = format(startDate, 'yyyy/MM/dd');
+    const query = `after:${dateQuery}`; 
+
+    const response = await window.gapi.client.gmail.users.messages.list({
+      userId: 'me',
+      q: query,
+      maxResults: 50 
+    });
+
+    return processMessages(response.result.messages);
 
   } catch (error) {
     console.error("Error fetching emails from Gmail:", error);
+    throw error;
+  }
+};
+
+export const searchEmails = async (terms: string[], monthsBack: number): Promise<Email[]> => {
+  try {
+    if (terms.length === 0) return [];
+
+    // Construct OR query for terms (from:domain.com OR from:user@email.com)
+    // Gmail API supports this syntax.
+    const termQuery = terms.map(t => `from:${t}`).join(' OR ');
+    
+    const startDate = subMonths(new Date(), monthsBack);
+    const dateQuery = format(startDate, 'yyyy/MM/dd');
+    
+    // Combine terms with date range
+    const fullQuery = `(${termQuery}) after:${dateQuery}`;
+
+    console.log("Executing Gmail Query:", fullQuery);
+
+    const response = await window.gapi.client.gmail.users.messages.list({
+      userId: 'me',
+      q: fullQuery,
+      maxResults: 50
+    });
+
+    return processMessages(response.result.messages);
+
+  } catch (error) {
+    console.error("Error searching emails:", error);
     throw error;
   }
 };

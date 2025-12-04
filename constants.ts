@@ -1,3 +1,4 @@
+
 import { CategoryType, Child, UrgencyLevel, Email, SchoolEvent, ActionItem } from './types';
 
 export const CHILDREN_MOCK: Child[] = [
@@ -7,6 +8,7 @@ export const CHILDREN_MOCK: Child[] = [
     schoolName: 'St. Mary\'s Primary',
     color: 'pink',
     avatarUrl: 'https://picsum.photos/seed/emma/100/100',
+    emailRules: ['stmarys.school.uk', 'class4@stmarys.school.uk', 'gymnastics-club.com']
   },
   {
     id: 'c2',
@@ -14,6 +16,7 @@ export const CHILDREN_MOCK: Child[] = [
     schoolName: 'Oakwood High',
     color: 'blue',
     avatarUrl: 'https://picsum.photos/seed/oliver/100/100',
+    emailRules: ['oakwood.high.sch']
   }
 ];
 
