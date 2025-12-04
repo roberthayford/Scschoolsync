@@ -2,18 +2,31 @@
 import { Email } from '../types';
 import { format, subMonths } from 'date-fns';
 
-// These would typically come from environment variables
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''; 
-const API_KEY = process.env.GOOGLE_API_KEY || ''; 
+// Mutable variables to allow runtime configuration
+let CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''; 
+let API_KEY = process.env.GOOGLE_API_KEY || ''; 
+
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest';
 const SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
-const STORAGE_KEY = 'schoolsync_gmail_token';
+const TOKEN_STORAGE_KEY = 'schoolsync_gmail_token';
+const CREDS_STORAGE_KEY = 'schoolsync_google_creds';
+
+// Attempt to load credentials from localStorage on module load
+try {
+  const storedCreds = localStorage.getItem(CREDS_STORAGE_KEY);
+  if (storedCreds) {
+    const parsed = JSON.parse(storedCreds);
+    if (parsed.clientId) CLIENT_ID = parsed.clientId;
+    if (parsed.apiKey) API_KEY = parsed.apiKey;
+  }
+} catch (e) {
+  console.error("Failed to load stored credentials", e);
+}
 
 let tokenClient: any;
 let gapiInited = false;
 let gisInited = false;
 
-// Interface for the window object to include google/gapi types
 declare global {
   interface Window {
     google: any;
@@ -21,10 +34,20 @@ declare global {
   }
 }
 
+// Helper to update credentials from UI
+export const updateGoogleCredentials = (clientId: string, apiKey: string) => {
+  CLIENT_ID = clientId;
+  API_KEY = apiKey;
+  localStorage.setItem(CREDS_STORAGE_KEY, JSON.stringify({ clientId, apiKey }));
+};
+
+export const hasValidCredentials = () => {
+  return !!CLIENT_ID && !!API_KEY;
+};
+
 // Helper to decode Gmail body (URL-safe base64)
 const decodeEmailBody = (data: string) => {
   try {
-    // Gmail uses URL-safe base64
     const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
     const binaryString = window.atob(base64);
     const bytes = new Uint8Array(binaryString.length);
@@ -41,28 +64,22 @@ const decodeEmailBody = (data: string) => {
 const extractEmailBody = (payload: any): string => {
   if (!payload) return "";
   
-  // 1. Plain text directly in payload body
   if (payload.body && payload.body.data) {
     return decodeEmailBody(payload.body.data);
   }
 
-  // 2. Multipart payload
   if (payload.parts) {
-    // Priority 1: text/plain
     const plainPart = payload.parts.find((p: any) => p.mimeType === 'text/plain');
     if (plainPart && plainPart.body && plainPart.body.data) {
       return decodeEmailBody(plainPart.body.data);
     }
 
-    // Priority 2: text/html (strip tags for basic analysis)
     const htmlPart = payload.parts.find((p: any) => p.mimeType === 'text/html');
     if (htmlPart && htmlPart.body && htmlPart.body.data) {
       const html = decodeEmailBody(htmlPart.body.data);
-      // Simple tag strip for cleaner text analysis
       return html.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim();
     }
     
-    // Priority 3: Recursive search (e.g. multipart/alternative inside mixed)
     for (const part of payload.parts) {
       if (part.parts) {
         const nested = extractEmailBody(part);
@@ -75,17 +92,20 @@ const extractEmailBody = (payload: any): string => {
 };
 
 export const initializeGmailApi = async (): Promise<boolean> => {
-  // If keys are missing, fail fast but allow UI to render 'unavailable' state
   if (!CLIENT_ID || !API_KEY) {
-    console.warn("Google Client ID or API Key not set. Gmail integration will not work.");
+    console.warn("Google Client ID or API Key not set.");
     return false;
   }
+
+  // Reset state on re-initialization attempt
+  gapiInited = false;
+  gisInited = false;
 
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
         console.error("Google Identity Services script timed out.");
         resolve(false);
-    }, 5000); // 5 second timeout
+    }, 5000); 
 
     const checkLibs = setInterval(() => {
       if (window.gapi && window.google) {
@@ -99,15 +119,14 @@ export const initializeGmailApi = async (): Promise<boolean> => {
                 discoveryDocs: [DISCOVERY_DOC],
             });
             
-            // Restore token from local storage if available
-            const storedToken = localStorage.getItem(STORAGE_KEY);
+            const storedToken = localStorage.getItem(TOKEN_STORAGE_KEY);
             if (storedToken) {
                 try {
-                const token = JSON.parse(storedToken);
-                window.gapi.client.setToken(token);
+                  const token = JSON.parse(storedToken);
+                  window.gapi.client.setToken(token);
                 } catch (e) {
-                console.error("Error restoring token", e);
-                localStorage.removeItem(STORAGE_KEY);
+                  console.error("Error restoring token", e);
+                  localStorage.removeItem(TOKEN_STORAGE_KEY);
                 }
             }
 
@@ -121,14 +140,13 @@ export const initializeGmailApi = async (): Promise<boolean> => {
 
         if (window.google.accounts && window.google.accounts.oauth2) {
             tokenClient = window.google.accounts.oauth2.initTokenClient({
-            client_id: CLIENT_ID,
-            scope: SCOPES,
-            callback: '', // defined later
+              client_id: CLIENT_ID,
+              scope: SCOPES,
+              callback: '', // defined later
             });
             gisInited = true;
             maybeEnableButtons();
         } else {
-             // GIS script loaded but object missing?
              console.error("Google Accounts OAuth2 not found");
         }
       }
@@ -152,13 +170,11 @@ export const handleAuthClick = async (): Promise<boolean> => {
         return;
       }
       
-      // Securely store the token
       const token = window.gapi.client.getToken();
       if (token) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(token));
+        localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
       } else if (resp.access_token) {
-        // Fallback if gapi client hasn't updated yet, use response directly
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(resp));
+        localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(resp));
         window.gapi.client.setToken(resp);
       }
 
@@ -166,10 +182,8 @@ export const handleAuthClick = async (): Promise<boolean> => {
     };
 
     if (window.gapi.client.getToken() === null) {
-      // Prompt the user to select a Google Account and ask for consent to share their data
       tokenClient.requestAccessToken({ prompt: 'consent' });
     } else {
-      // Skip display of account chooser and consent dialog for an existing session.
       tokenClient.requestAccessToken({ prompt: '' });
     }
   });
@@ -180,7 +194,7 @@ export const handleSignoutClick = () => {
   if (token !== null) {
     window.google.accounts.oauth2.revoke(token.access_token);
     window.gapi.client.setToken('');
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
   }
 };
 
@@ -262,15 +276,10 @@ export const fetchRecentEmails = async (monthsBack: number = 2): Promise<Email[]
 export const searchEmails = async (terms: string[], monthsBack: number): Promise<Email[]> => {
   try {
     if (terms.length === 0) return [];
-
-    // Construct OR query for terms (from:domain.com OR from:user@email.com)
-    // Gmail API supports this syntax.
-    const termQuery = terms.map(t => `from:${t}`).join(' OR ');
     
+    const termQuery = terms.map(t => `from:${t}`).join(' OR ');
     const startDate = subMonths(new Date(), monthsBack);
     const dateQuery = format(startDate, 'yyyy/MM/dd');
-    
-    // Combine terms with date range
     const fullQuery = `(${termQuery}) after:${dateQuery}`;
 
     console.log("Executing Gmail Query:", fullQuery);

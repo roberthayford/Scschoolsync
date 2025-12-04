@@ -1,7 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut } from 'lucide-react';
-import { initializeGmailApi, handleAuthClick, handleSignoutClick, getGmailUserProfile, fetchRecentEmails, isUserSignedIn } from '../services/gmailService';
+import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Save } from 'lucide-react';
+import { 
+  initializeGmailApi, 
+  handleAuthClick, 
+  handleSignoutClick, 
+  getGmailUserProfile, 
+  fetchRecentEmails, 
+  isUserSignedIn,
+  hasValidCredentials,
+  updateGoogleCredentials
+} from '../services/gmailService';
 import { Email } from '../types';
 
 interface SettingsProps {
@@ -17,44 +26,65 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Form state for manual credentials
+  const [clientIdInput, setClientIdInput] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showCredsForm, setShowCredsForm] = useState(false);
+
   useEffect(() => {
-    const init = async () => {
-      try {
-        const ready = await initializeGmailApi();
-        setIsGapiReady(ready);
-        
-        if (ready && isUserSignedIn()) {
-          try {
-            const profile = await getGmailUserProfile();
-            setUserProfile(profile);
-            setIsConnected(true);
-          } catch (e) {
-            console.warn("Session expired or invalid, please reconnect.", e);
-            handleSignoutClick();
-            setIsConnected(false);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to initialize Gmail API", e);
-        setIsGapiReady(false);
-      } finally {
-        setIsInitializing(false);
-      }
-    };
-    init();
+    initGmail();
   }, []);
+
+  const initGmail = async () => {
+    setIsInitializing(true);
+    try {
+      const ready = await initializeGmailApi();
+      setIsGapiReady(ready);
+      
+      // If not ready and we don't have creds, show form
+      if (!ready && !hasValidCredentials()) {
+        setShowCredsForm(true);
+      } else {
+        setShowCredsForm(false);
+      }
+
+      if (ready && isUserSignedIn()) {
+        try {
+          const profile = await getGmailUserProfile();
+          setUserProfile(profile);
+          setIsConnected(true);
+        } catch (e) {
+          console.warn("Session expired or invalid, please reconnect.", e);
+          handleSignoutClick();
+          setIsConnected(false);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to initialize Gmail API", e);
+      setIsGapiReady(false);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  const handleSaveCredentials = async () => {
+    if (!clientIdInput || !apiKeyInput) {
+      setError("Please provide both Client ID and API Key");
+      return;
+    }
+    updateGoogleCredentials(clientIdInput.trim(), apiKeyInput.trim());
+    await initGmail();
+  };
 
   const handleConnect = async () => {
     try {
       setError(null);
       await handleAuthClick();
       
-      // Fetch profile to confirm connection
       const profile = await getGmailUserProfile();
       setUserProfile(profile);
       setIsConnected(true);
       
-      // Auto-sync on first connect as per requirements
       handleSync();
     } catch (err: any) {
       console.error(err);
@@ -74,7 +104,6 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
     setIsSyncing(true);
     setError(null);
     try {
-      // Requirement: Monitor past 2 months
       const emails = await fetchRecentEmails(2);
       onEmailsImported(emails);
       setLastSyncTime(new Date().toLocaleTimeString());
@@ -147,6 +176,8 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+                 
+                 {/* Main Connect State */}
                  <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
                     <Mail size={32} className="text-slate-400" />
                  </div>
@@ -163,33 +194,70 @@ const Settings: React.FC<SettingsProps> = ({ onEmailsImported }) => {
                    </div>
                  )}
                  
-                 {!isGapiReady && !isInitializing && (
-                    <div className="bg-yellow-50 text-yellow-700 px-4 py-3 rounded-lg text-sm border border-yellow-200 max-w-md">
-                        <p className="font-bold mb-1">Service Unavailable</p>
-                        <p>Google Client services failed to initialize. Check if environment variables for GOOGLE_CLIENT_ID and API_KEY are set, or if an ad-blocker is preventing the script from loading.</p>
-                    </div>
+                 {/* Configuration Form for missing creds */}
+                 {showCredsForm && (
+                   <div className="w-full max-w-md bg-slate-50 p-4 rounded-xl border border-slate-200 text-left mt-4">
+                     <div className="flex items-center gap-2 text-orange-600 mb-3">
+                        <AlertCircle size={16} />
+                        <span className="text-sm font-bold">Missing Configuration</span>
+                     </div>
+                     <p className="text-xs text-slate-600 mb-4">
+                       The app needs a Google Cloud Client ID and API Key to connect. Please enter them below.
+                     </p>
+                     <div className="space-y-3">
+                       <div>
+                         <label className="block text-xs font-semibold text-slate-700 mb-1">Google Client ID</label>
+                         <input 
+                           type="text" 
+                           value={clientIdInput}
+                           onChange={(e) => setClientIdInput(e.target.value)}
+                           placeholder="apps.googleusercontent.com"
+                           className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-500"
+                         />
+                       </div>
+                       <div>
+                         <label className="block text-xs font-semibold text-slate-700 mb-1">Google API Key</label>
+                         <input 
+                           type="text" 
+                           value={apiKeyInput}
+                           onChange={(e) => setApiKeyInput(e.target.value)}
+                           placeholder="AIzaSy..."
+                           className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg outline-none focus:border-indigo-500"
+                         />
+                       </div>
+                       <button 
+                         onClick={handleSaveCredentials}
+                         className="w-full bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-900 flex items-center justify-center gap-2"
+                       >
+                         <Save size={14} /> Save Configuration
+                       </button>
+                     </div>
+                   </div>
                  )}
 
-                 <button 
-                   onClick={handleConnect}
-                   disabled={isInitializing || !isGapiReady}
-                   className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                 >
-                   {isInitializing ? (
-                     <>
-                        <Loader2 className="animate-spin" size={18} /> Loading Client...
-                     </>
-                   ) : isGapiReady ? (
-                     <>
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
-                        Connect with Google
-                     </>
-                   ) : (
-                     <>
-                        <AlertCircle size={18} /> Service Unavailable
-                     </>
-                   )}
-                 </button>
+                 {/* Connect Button (Only shown if configured or checking) */}
+                 {!showCredsForm && (
+                   <button 
+                     onClick={handleConnect}
+                     disabled={isInitializing || !isGapiReady}
+                     className="mt-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     {isInitializing ? (
+                       <>
+                          <Loader2 className="animate-spin" size={18} /> Loading Client...
+                       </>
+                     ) : isGapiReady ? (
+                       <>
+                          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5 bg-white rounded-full p-0.5" alt="G" />
+                          Connect with Google
+                       </>
+                     ) : (
+                       <>
+                          <AlertCircle size={18} /> Service Unavailable
+                       </>
+                     )}
+                   </button>
+                 )}
               </div>
             )}
           </div>
