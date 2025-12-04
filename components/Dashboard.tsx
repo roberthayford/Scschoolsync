@@ -19,7 +19,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { format } from 'date-fns';
+import { format, isToday, isThisWeek, addWeeks, startOfWeek, endOfWeek, parseISO, isSameDay, isWithinInterval } from 'date-fns';
 import { Child, ActionItem, SchoolEvent, UrgencyLevel, CategoryType } from '../types';
 import { askDashboardAgent } from '../services/geminiService';
 
@@ -29,12 +29,48 @@ interface DashboardProps {
   actions: ActionItem[];
 }
 
+type TimePeriod = 'today' | 'this-week' | 'next-week';
+
 const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) => {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('today');
 
-  // Sort actions by urgency and deadline
+  // Time period filtering helpers
+  const isInTimePeriod = (dateStr: string | undefined): boolean => {
+    if (!dateStr) return false;
+    const now = new Date();
+    const itemDate = parseISO(dateStr);
+
+    switch (timePeriod) {
+      case 'today':
+        return isToday(itemDate);
+      case 'this-week':
+        return isThisWeek(itemDate, { weekStartsOn: 0 });
+      case 'next-week':
+        const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
+        const nextWeekEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
+        return isWithinInterval(itemDate, { start: nextWeekStart, end: nextWeekEnd });
+      default:
+        return true;
+    }
+  };
+
+  // Filter events and actions based on selected time period
+  const filteredEvents = events
+    .filter(e => isInTimePeriod(e.date))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const filteredActions = actions
+    .filter(a => !a.isCompleted && isInTimePeriod(a.deadline))
+    .sort((a, b) => {
+      const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return dateA - dateB;
+    });
+
+  // Sort actions by urgency and deadline for urgent actions section
   const urgentActions = actions
     .filter(a => !a.isCompleted)
     .sort((a, b) => {
@@ -42,10 +78,6 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       return urgencyMap[b.urgency] - urgencyMap[a.urgency];
     })
     .slice(0, 3);
-
-  // Get today's events
-  const today = new Date().toISOString().split('T')[0];
-  const todaysEvents = events.filter(e => e.date.startsWith(today));
 
   // Chart Data Preparation
   const chartData = childrenList.map(child => {
@@ -64,6 +96,14 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       case UrgencyLevel.HIGH: return 'bg-orange-100 text-orange-700 border-orange-200';
       case UrgencyLevel.MEDIUM: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
       default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  const getTimePeriodLabel = () => {
+    switch (timePeriod) {
+      case 'today': return "Today's";
+      case 'this-week': return "This Week's";
+      case 'next-week': return "Next Week's";
     }
   };
 
@@ -106,6 +146,37 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
             <ArrowRight size={18} />
           </Link>
         </div>
+      </div>
+
+      {/* Time Period Filter Tabs */}
+      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-fit">
+        <button
+          onClick={() => setTimePeriod('today')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'today'
+            ? 'bg-indigo-600 text-white shadow-md'
+            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+        >
+          Today
+        </button>
+        <button
+          onClick={() => setTimePeriod('this-week')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'this-week'
+            ? 'bg-indigo-600 text-white shadow-md'
+            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+        >
+          This Week
+        </button>
+        <button
+          onClick={() => setTimePeriod('next-week')}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'next-week'
+            ? 'bg-indigo-600 text-white shadow-md'
+            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+        >
+          Next Week
+        </button>
       </div>
 
       {/* AI Assistant Section */}
@@ -160,27 +231,38 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {/* Today's Overview Card */}
+        {/* Events Card - Now filtered by time period */}
         <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 lg:col-span-2 hover:shadow-md transition-shadow duration-300">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <Calendar size={20} className="text-indigo-500" />
-              Today's Schedule
+              {getTimePeriodLabel()} Events
             </h3>
-            <span className="text-sm text-slate-400">{format(new Date(), 'EEEE, MMMM do')}</span>
+            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">
+              {filteredEvents.length}
+            </span>
           </div>
 
-          {todaysEvents.length > 0 ? (
-            <div className="space-y-3">
-              {todaysEvents.map(evt => {
+          {filteredEvents.length > 0 ? (
+            <div className="space-y-3 max-h-80 overflow-y-auto">
+              {filteredEvents.map(evt => {
                 const child = childrenList.find(c => c.id === evt.childId);
+                const eventDate = parseISO(evt.date);
+                const showDate = timePeriod !== 'today';
                 return (
                   <div key={evt.id} className="flex items-start gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
                     <div className={`w-1 h-12 rounded-full bg-${child?.color || 'gray'}-500 shrink-0`}></div>
                     <div className="flex-1">
                       <div className="flex justify-between">
                         <h4 className="font-medium text-slate-900">{evt.title}</h4>
-                        <span className="text-xs font-semibold px-2 py-1 rounded bg-white border border-slate-200 text-slate-600">{evt.time}</span>
+                        <div className="flex gap-2">
+                          {showDate && (
+                            <span className="text-xs font-semibold px-2 py-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
+                              {format(eventDate, 'EEE, MMM d')}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold px-2 py-1 rounded bg-white border border-slate-200 text-slate-600">{evt.time}</span>
+                        </div>
                       </div>
                       <p className="text-sm text-slate-500">{child?.name} • {evt.location || 'School'}</p>
                     </div>
@@ -191,33 +273,38 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
               <CheckCircle size={32} className="mb-2 opacity-50" />
-              <p>No events scheduled for today.</p>
+              <p>No events {timePeriod === 'today' ? 'scheduled for today' : timePeriod === 'this-week' ? 'this week' : 'next week'}.</p>
             </div>
           )}
         </div>
 
-        {/* Action Required Card */}
+        {/* Actions Due Card - Now filtered by time period */}
         <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 hover:shadow-md transition-shadow duration-300">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <AlertCircle size={20} className="text-orange-500" />
-              Actions Required
+              {getTimePeriodLabel()} Actions
             </h3>
             <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full">
-              {actions.filter(a => !a.isCompleted).length}
+              {filteredActions.length}
             </span>
           </div>
 
-          <div className="space-y-3">
-            {urgentActions.map(action => {
+          <div className="space-y-3 max-h-80 overflow-y-auto">
+            {filteredActions.map(action => {
               const child = childrenList.find(c => c.id === action.childId);
+              const showDate = timePeriod !== 'today';
               return (
                 <div key={action.id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors cursor-pointer">
                   <div className="flex justify-between items-start mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${getUrgencyBadge(action.urgency)}`}>
                       {action.urgency}
                     </span>
-                    <span className="text-xs text-slate-400">Due {format(new Date(action.deadline), 'MMM d')}</span>
+                    {action.deadline && (
+                      <span className="text-xs text-slate-400">
+                        {showDate ? format(parseISO(action.deadline), 'EEE, MMM d') : format(parseISO(action.deadline), 'MMM d')}
+                      </span>
+                    )}
                   </div>
                   <h4 className="text-sm font-medium text-slate-900 mb-1 leading-snug">{action.title}</h4>
                   <div className="flex items-center gap-2">
@@ -228,9 +315,10 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
               );
             })}
 
-            {urgentActions.length === 0 && (
+            {filteredActions.length === 0 && (
               <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                <p>All caught up!</p>
+                <CheckCircle size={32} className="mb-2 opacity-50" />
+                <p>No actions due {timePeriod === 'today' ? 'today' : timePeriod === 'this-week' ? 'this week' : 'next week'}!</p>
               </div>
             )}
           </div>
