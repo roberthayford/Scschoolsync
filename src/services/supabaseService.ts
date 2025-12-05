@@ -119,6 +119,30 @@ export const supabaseService = {
     },
 
     async deleteChild(id: string): Promise<void> {
+        // Cascade delete: remove all related data first to avoid FK constraint violations
+
+        // 1. Delete actions for this child
+        const { error: actionsError } = await supabase
+            .from('actions')
+            .delete()
+            .eq('child_id', id);
+        if (actionsError) throw actionsError;
+
+        // 2. Delete events for this child
+        const { error: eventsError } = await supabase
+            .from('events')
+            .delete()
+            .eq('child_id', id);
+        if (eventsError) throw eventsError;
+
+        // 3. Delete emails for this child
+        const { error: emailsError } = await supabase
+            .from('emails')
+            .delete()
+            .eq('child_id', id);
+        if (emailsError) throw emailsError;
+
+        // 4. Finally delete the child
         const { error } = await supabase
             .from('children')
             .delete()
