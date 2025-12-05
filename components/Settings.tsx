@@ -465,6 +465,33 @@ const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
+        {/* Data Management */}
+        <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-red-50 bg-red-50/30">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <Trash2 className="text-red-500" />
+              Data Management
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">Manage your application data and content.</p>
+          </div>
+          <div className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Clear Application Data</p>
+                <p className="text-sm text-slate-500">Permanently remove all children, emails, events, and actions. Your account remains active.</p>
+              </div>
+              <button
+                onClick={handleDeleteAllData}
+                disabled={isDeleting}
+                className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+                {isDeleting ? 'Clearing...' : 'Clear All Data'}
+              </button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   );
