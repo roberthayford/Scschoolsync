@@ -17,7 +17,7 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
 
   const prompt = `
     You are an intelligent assistant for the "SchoolSync" app. 
-    Analyze the following school email text.
+    Analyze the following school email text and its attachments (especially PDFs).
     
     Context - Known Children: ${childNames.join(', ')}.
     ${preferredChildName ? `Note: This email was received from a source associated with ${preferredChildName}.` : ''}
@@ -25,15 +25,17 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
     Task:
     1. Identify which child this relates to (or null if unsure).
     2. Categorize the email.
-    3. Extract a short summary.
+    3. Extract a detailed summary.
+       - CRITICAL: If the email or PDF contains specific dates and times for events (e.g., "Monday 12th at 9am"), you MUST include them in this summary.
     4. Determine urgency.
     5. Extract any specific events (dates, times).
+       - LOOK CAREFULLY in the PDF content for start times, end times, and specific dates.
     6. Extract any specific actions required by the parent.
 
     Email Content:
     "${emailContent}"
 
-    ${attachments.length > 0 ? `Note: This email contains ${attachments.length} PDF attachment(s). Analyze their content as well.` : ''}
+    ${attachments.length > 0 ? `Note: This email contains ${attachments.length} PDF attachment(s). CAREFULLY READ THE PDF CONTENT for any dates, times, or deadlines.` : ''}
   `;
 
   const contentParts: any[] = [{ text: prompt }];

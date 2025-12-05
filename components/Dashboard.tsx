@@ -30,15 +30,17 @@ import { ActionCard } from './ActionCard';
 import { ActionsBanner } from './ActionsBanner';
 import { EmptyState } from './EmptyState';
 import { ChildFilter } from './ChildFilter';
+import DashboardSkeleton from './DashboardSkeleton';
 
 interface DashboardProps {
   childrenList: Child[];
   events: SchoolEvent[];
   actions: ActionItem[];
   onToggleAction: (id: string) => void;
+  isLoading?: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, onToggleAction }) => {
+const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, onToggleAction, isLoading = false }) => {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
@@ -47,6 +49,10 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
 
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  if (isLoading) {
+    return <DashboardSkeleton />;
+  }
 
   const displayName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
 

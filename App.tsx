@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Timeline from './components/Timeline';
@@ -18,15 +18,32 @@ import { supabaseService } from './src/services/supabaseService';
 import { searchEmails } from './services/gmailService';
 import { analyzeEmailWithGemini } from './services/geminiService';
 import { useAutoSync } from './src/hooks/useAutoSync';
+import { ThemeProvider } from './src/contexts/ThemeContext';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const AppContent: React.FC = () => {
   const { session, loading } = useAuth();
+  const location = useLocation();
 
   // Global State
   const [childrenList, setChildrenList] = useState<Child[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
   const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [actions, setActions] = useState<ActionItem[]>([]);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   // Background Sync State
   const [isSyncing, setIsSyncing] = useState(false);
@@ -46,6 +63,7 @@ const AppContent: React.FC = () => {
   useEffect(() => {
     if (session) {
       const fetchData = async () => {
+        setIsDataLoading(true);
         try {
           const [fetchedChildren, fetchedEvents, fetchedActions, fetchedEmails] = await Promise.all([
             supabaseService.getChildren(),
@@ -60,6 +78,8 @@ const AppContent: React.FC = () => {
           setEmails(fetchedEmails);
         } catch (error) {
           console.error('Error fetching data:', error);
+        } finally {
+          setIsDataLoading(false);
         }
       };
 
@@ -383,75 +403,92 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Router>
-      <Layout isSyncing={isSyncing} syncStatus={syncStatus}>
-        <Routes>
+    <Layout isSyncing={isSyncing} syncStatus={syncStatus}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
           <Route path="/" element={
-            <Dashboard
-              childrenList={childrenList}
-              events={events}
-              actions={actions}
-              onToggleAction={handleToggleAction}
-            />
+            <PageTransition>
+              <Dashboard
+                childrenList={childrenList}
+                events={events}
+                actions={actions}
+                onToggleAction={handleToggleAction}
+                isLoading={isDataLoading}
+              />
+            </PageTransition>
           } />
 
           <Route path="/timeline" element={
-            <Timeline
-              childrenList={childrenList}
-              events={events}
-            />
+            <PageTransition>
+              <Timeline
+                childrenList={childrenList}
+                events={events}
+              />
+            </PageTransition>
           } />
 
           <Route path="/actions" element={
-            <Actions
-              childrenList={childrenList}
-              actions={actions}
-              onToggleAction={handleToggleAction}
-            />
+            <PageTransition>
+              <Actions
+                childrenList={childrenList}
+                actions={actions}
+                onToggleAction={handleToggleAction}
+              />
+            </PageTransition>
           } />
 
           <Route path="/children" element={
-            <Children
-              childrenList={childrenList}
-              onUpdateChildren={handleUpdateChildren}
-              onEmailsImported={handleEmailsImported}
-            />
+            <PageTransition>
+              <Children
+                childrenList={childrenList}
+                onUpdateChildren={handleUpdateChildren}
+                onEmailsImported={handleEmailsImported}
+              />
+            </PageTransition>
           } />
 
           <Route path="/inbox" element={
-            <Inbox
-              emails={emails}
-              childrenList={childrenList}
-              onEmailProcessed={handleEmailProcessed}
-            />
+            <PageTransition>
+              <Inbox
+                emails={emails}
+                childrenList={childrenList}
+                onEmailProcessed={handleEmailProcessed}
+              />
+            </PageTransition>
           } />
 
           <Route path="/settings" element={
-            <Settings
-              onEmailsImported={handleEmailsImported}
-              onDataCleared={handleDataCleared}
-              onChildAdded={handleChildAdded}
-              onSync={handleBackgroundSync}
-              isSyncing={isSyncing}
-              syncStatus={syncStatus}
-              lastSyncTime={lastSyncTime}
-              syncHistory={syncHistory}
-              autoFetchSettings={autoFetchSettings}
-              onUpdateAutoFetchSettings={updateAutoFetchSettings}
-            />
+            <PageTransition>
+              <Settings
+                onEmailsImported={handleEmailsImported}
+                onDataCleared={handleDataCleared}
+                onChildAdded={handleChildAdded}
+                onSync={handleBackgroundSync}
+                isSyncing={isSyncing}
+                syncStatus={syncStatus}
+                lastSyncTime={lastSyncTime}
+                syncHistory={syncHistory}
+                autoFetchSettings={autoFetchSettings}
+                onUpdateAutoFetchSettings={updateAutoFetchSettings}
+              />
+            </PageTransition>
           } />
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Layout>
-    </Router>
+      </AnimatePresence>
+    </Layout>
   );
 };
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AppContent />
+      <ThemeProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </ThemeProvider>
     </AuthProvider>
   );
 };
