@@ -18,7 +18,6 @@ import { supabaseService } from './src/services/supabaseService';
 import { searchEmails } from './services/gmailService';
 import { analyzeEmailWithGemini } from './services/geminiService';
 import { useAutoSync } from './src/hooks/useAutoSync';
-import { ThemeProvider } from './src/contexts/ThemeContext';
 import { AnimatePresence, motion } from 'framer-motion';
 
 const PageTransition: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -484,11 +483,9 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <ThemeProvider>
-        <Router>
-          <AppContent />
-        </Router>
-      </ThemeProvider>
+      <Router>
+        <AppContent />
+      </Router>
     </AuthProvider>
   );
 };
