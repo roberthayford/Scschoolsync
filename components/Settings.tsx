@@ -12,6 +12,7 @@ import {
 import { Email, Child } from '../types';
 import { AutoFetchSettings } from '../src/hooks/useAutoSync';
 import { supabaseService } from '../src/services/supabaseService';
+import UserAccountSettings from '../src/components/UserAccountSettings';
 
 interface SettingsProps {
   onEmailsImported: (emails: Email[]) => void;
@@ -170,29 +171,8 @@ const Settings: React.FC<SettingsProps> = ({
 
       <div className="max-w-3xl space-y-6">
 
-        {/* Account Settings */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-              <User className="text-blue-600" />
-              Account Settings
-            </h3>
-            <p className="text-sm text-slate-500 mt-1">Manage your SchoolSync account.</p>
-          </div>
-          <div className="p-6 flex items-center justify-between">
-            <div>
-              <p className="font-medium text-slate-900">Signed in as</p>
-              <p className="text-slate-600">{user?.email}</p>
-            </div>
-            <button
-              onClick={signOut}
-              className="px-4 py-2 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2"
-            >
-              <LogOut size={18} />
-              Sign Out
-            </button>
-          </div>
-        </div>
+        {/* Account Settings - Using UserAccountSettings Component */}
+        <UserAccountSettings />
 
         {/* Connection Card */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -459,24 +439,6 @@ const Settings: React.FC<SettingsProps> = ({
           </div>
         </div>
 
-        {/* Data Management */}
-        <div className="bg-white rounded-2xl border border-red-200 shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-slate-900 mb-2 flex items-center gap-2">
-            <Trash2 className="text-red-600" />
-            Data Management
-          </h3>
-          <p className="text-sm text-slate-500 mb-4">
-            Delete all your data including children, emails, events, and actions. Use this to start fresh.
-          </p>
-          <button
-            onClick={handleDeleteAllData}
-            disabled={isDeleting}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-            {isDeleting ? 'Deleting...' : 'Delete All Data & Start Fresh'}
-          </button>
-        </div>
       </div>
     </div>
   );
