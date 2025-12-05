@@ -99,31 +99,49 @@ const AppContent: React.FC = () => {
 
   // Background Sync Function - runs at App level so it persists across navigation
   const handleBackgroundSync = async () => {
-    if (isSyncing) return;
+    console.log('[App] handleBackgroundSync called');
+    if (isSyncing) {
+      console.log('[App] Already syncing, ignoring call');
+      return;
+    }
 
     setIsSyncing(true);
     setSyncStatus('Fetching children...');
     syncAbortRef.current = false;
 
     try {
+      console.log('[App] Fetching children from Supabase...');
       // 1. Fetch children to get their email rules
       const children = await supabaseService.getChildren();
       setChildrenList(children); // Update local state
       const childNames = children.map(c => c.name);
+      console.log(`[App] Found ${children.length} children: ${childNames.join(', ')}`);
 
       // 2. Extract all email rules (domains or emails)
       const allRules = children.flatMap(child => child.emailRules || []);
       const validRules = allRules.filter(rule => rule && rule.trim().length > 0);
+      console.log(`[App] Found ${validRules.length} valid email rules: ${validRules.join(', ')}`);
 
       if (validRules.length === 0) {
+        console.warn('[App] No valid rules found. Aborting sync.');
         setSyncStatus('No school email addresses configured.');
+        setLastSyncTime(new Date().toLocaleTimeString());
+        // Still record this sync attempt in history
+        const timestamp = new Date().toLocaleString();
+        setSyncHistory(prev => {
+          const updated = [timestamp + ' (no rules)', ...prev].slice(0, 5);
+          localStorage.setItem('schoolsync_sync_history', JSON.stringify(updated));
+          return updated;
+        });
         setIsSyncing(false);
         return;
       }
 
       // 3. Search for emails matching these rules
       setSyncStatus('Searching Gmail...');
+      console.log('[App] calling searchEmails...');
       const fetchedEmails = await searchEmails(validRules, 2);
+      console.log(`[App] searchEmails returned ${fetchedEmails.length} emails`);
 
       // 4. Process each email: Check duplicate -> Analyze -> Save
       const processedEmails: Email[] = [];
