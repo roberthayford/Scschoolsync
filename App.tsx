@@ -17,6 +17,7 @@ import Login from './src/components/Login';
 import { supabaseService } from './src/services/supabaseService';
 import { searchEmails } from './services/gmailService';
 import { analyzeEmailWithGemini } from './services/geminiService';
+import { useAutoSync } from './src/hooks/useAutoSync';
 
 const AppContent: React.FC = () => {
   const { session, loading } = useAuth();
@@ -32,6 +33,7 @@ const AppContent: React.FC = () => {
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const syncAbortRef = useRef(false);
+
 
   useEffect(() => {
     if (session) {
@@ -243,6 +245,8 @@ const AppContent: React.FC = () => {
     }
   };
 
+  const { settings: autoFetchSettings, updateSettings: updateAutoFetchSettings } = useAutoSync(handleBackgroundSync);
+
   // Handler to toggle action completion
   const handleToggleAction = async (id: string) => {
     // Optimistic update
@@ -396,6 +400,8 @@ const AppContent: React.FC = () => {
               isSyncing={isSyncing}
               syncStatus={syncStatus}
               lastSyncTime={lastSyncTime}
+              autoFetchSettings={autoFetchSettings}
+              onUpdateAutoFetchSettings={updateAutoFetchSettings}
             />
           } />
 

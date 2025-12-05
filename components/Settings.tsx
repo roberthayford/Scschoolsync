@@ -9,6 +9,7 @@ import {
   isUserSignedIn,
 } from '../services/gmailService';
 import { Email, Child } from '../types';
+import { AutoFetchSettings } from '../src/hooks/useAutoSync';
 import { supabaseService } from '../src/services/supabaseService';
 
 interface SettingsProps {
@@ -19,6 +20,8 @@ interface SettingsProps {
   isSyncing?: boolean;
   syncStatus?: string | null;
   lastSyncTime?: string | null;
+  autoFetchSettings?: AutoFetchSettings;
+  onUpdateAutoFetchSettings?: (settings: Partial<AutoFetchSettings>) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({
@@ -28,7 +31,9 @@ const Settings: React.FC<SettingsProps> = ({
   onSync,
   isSyncing = false,
   syncStatus,
-  lastSyncTime
+  lastSyncTime,
+  autoFetchSettings,
+  onUpdateAutoFetchSettings
 }) => {
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -213,6 +218,81 @@ const Settings: React.FC<SettingsProps> = ({
                 <p className="text-xs text-slate-400 italic">
                   Note: Sync runs in the background. You can navigate to other pages while it processes.
                 </p>
+
+                {/* Auto-Fetch Scheduler UI */}
+                {autoFetchSettings && onUpdateAutoFetchSettings && (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="font-medium text-slate-900">Auto-Fetch Schedule</h4>
+                        <p className="text-xs text-slate-500">Automatically check for new emails periodically.</p>
+                      </div>
+                      <div className="flex items-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="sr-only peer"
+                            checked={autoFetchSettings.enabled}
+                            onChange={(e) => onUpdateAutoFetchSettings({ enabled: e.target.checked })}
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                      </div>
+                    </div>
+
+                    {autoFetchSettings.enabled && (
+                      <div className="bg-slate-50 p-4 rounded-xl space-y-4">
+                        <div className="flex items-center gap-4">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="intervalType"
+                              checked={autoFetchSettings.intervalType === 'interval'}
+                              onChange={() => onUpdateAutoFetchSettings({ intervalType: 'interval' })}
+                              className="text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm text-slate-700">Every few hours</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="intervalType"
+                              checked={autoFetchSettings.intervalType === 'daily'}
+                              onChange={() => onUpdateAutoFetchSettings({ intervalType: 'daily' })}
+                              className="text-indigo-600 focus:ring-indigo-500"
+                            />
+                            <span className="text-sm text-slate-700">Daily at specific time</span>
+                          </label>
+                        </div>
+
+                        {autoFetchSettings.intervalType === 'interval' ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-600">Check every:</span>
+                            <select
+                              value={autoFetchSettings.intervalHours}
+                              onChange={(e) => onUpdateAutoFetchSettings({ intervalHours: Number(e.target.value) })}
+                              className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
+                            >
+                              <option value={1}>1 Hour</option>
+                              <option value={3}>3 Hours</option>
+                              <option value={5}>5 Hours</option>
+                            </select>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-600">Check at:</span>
+                            <input
+                              type="time"
+                              value={autoFetchSettings.dailyTime}
+                              onChange={(e) => onUpdateAutoFetchSettings({ dailyTime: e.target.value })}
+                              className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
