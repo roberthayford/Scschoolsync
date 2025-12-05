@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { Mail, CheckCircle, AlertCircle, RefreshCw, Loader2, LogOut, Trash2, UserPlus, Plus, User } from 'lucide-react';
 import { useAuth } from '../src/contexts/AuthContext';
+import { motion } from 'framer-motion';
 import {
   initializeGmailApi,
   handleAuthClick,
@@ -40,13 +40,6 @@ const Settings: React.FC<SettingsProps> = ({
   autoFetchSettings,
   onUpdateAutoFetchSettings
 }) => {
-  // ... existing code ...
-
-  // ... existing code ...
-
-  // Inside the return JSX, specifically within the Auto-Fetch Scheduler UI block
-  // Locate where the scheduler radio buttons ends (around line 298), and add:
-
   const { user, signOut } = useAuth();
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -174,7 +167,7 @@ const Settings: React.FC<SettingsProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 lg:pb-0">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
       </div>
@@ -185,7 +178,12 @@ const Settings: React.FC<SettingsProps> = ({
         <UserAccountSettings />
 
         {/* Connection Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+        >
           <div className="p-6 border-b border-slate-100">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <Mail className="text-indigo-600" />
@@ -205,12 +203,13 @@ const Settings: React.FC<SettingsProps> = ({
                     <p className="font-semibold text-slate-900">Connected to Gmail</p>
                     <p className="text-sm text-slate-600">{userProfile?.emailAddress}</p>
                   </div>
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     onClick={handleDisconnect}
                     className="ml-auto text-sm text-slate-500 hover:text-red-600 flex items-center gap-1 px-3 py-1.5 rounded-lg hover:bg-white transition-colors"
                   >
                     <LogOut size={14} /> Disconnect
-                  </button>
+                  </motion.button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -221,14 +220,15 @@ const Settings: React.FC<SettingsProps> = ({
                     </p>
                   </div>
 
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.96 }}
                     onClick={() => onSync?.()}
                     disabled={isSyncing}
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 font-medium rounded-lg hover:bg-indigo-100 transition-colors disabled:opacity-50"
                   >
                     {isSyncing ? <Loader2 className="animate-spin" size={18} /> : <RefreshCw size={18} />}
                     {isSyncing ? 'Syncing...' : 'Sync Now'}
-                  </button>
+                  </motion.button>
                 </div>
 
                 <p className="text-xs text-slate-400 italic">
@@ -384,10 +384,15 @@ const Settings: React.FC<SettingsProps> = ({
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
         {/* Add New Child */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
+        >
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
@@ -396,17 +401,22 @@ const Settings: React.FC<SettingsProps> = ({
               </h3>
               <p className="text-sm text-slate-500 mt-1">Add a child to track their school communications.</p>
             </div>
-            <button
+            <motion.button
+              whileTap={{ scale: 0.96 }}
               onClick={() => setShowAddChild(!showAddChild)}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
             >
               <Plus size={18} />
               {showAddChild ? 'Cancel' : 'Add Child'}
-            </button>
+            </motion.button>
           </div>
 
           {showAddChild && (
-            <div className="p-6 space-y-4">
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              className="p-6 space-y-4"
+            >
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Child's Name *</label>
                 <input
@@ -446,12 +456,17 @@ const Settings: React.FC<SettingsProps> = ({
                 {isAddingChild ? <Loader2 className="animate-spin" size={18} /> : <UserPlus size={18} />}
                 {isAddingChild ? 'Adding...' : 'Save Child'}
               </button>
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
 
         {/* Preferences Placeholder */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 opacity-60">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 opacity-60"
+        >
           <h3 className="text-lg font-semibold text-slate-900 mb-4">Notification Preferences</h3>
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -463,10 +478,15 @@ const Settings: React.FC<SettingsProps> = ({
               <div className="w-10 h-6 bg-indigo-200 rounded-full relative"><div className="w-4 h-4 bg-indigo-600 rounded-full absolute right-1 top-1"></div></div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Data Management */}
-        <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
+        >
           <div className="p-6 border-b border-red-50 bg-red-50/30">
             <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
               <Trash2 className="text-red-500" />
@@ -480,17 +500,18 @@ const Settings: React.FC<SettingsProps> = ({
                 <p className="font-medium text-slate-900">Clear Application Data</p>
                 <p className="text-sm text-slate-500">Permanently remove all children, emails, events, and actions. Your account remains active.</p>
               </div>
-              <button
-                onClick={handleDeleteAllData}
-                disabled={isDeleting}
-                className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-              >
-                {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-                {isDeleting ? 'Clearing...' : 'Clear All Data'}
-              </button>
             </div>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={handleDeleteAllData}
+              disabled={isDeleting}
+              className="px-4 py-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 hover:border-red-300 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
+              {isDeleting ? 'Clearing...' : 'Clear All Data'}
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
       </div>
     </div>

@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
 import { Child, Email } from '../types';
-import { Plus, Edit2, Trash2, Mail, School, X, Save, RefreshCw, Loader2, Calendar, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Mail, School, X, Save, RefreshCw, Loader2, Calendar, CheckCircle2, UserPlus } from 'lucide-react';
 import { searchEmails, isUserSignedIn } from '../services/gmailService';
 import { supabaseService } from '../src/services/supabaseService';
+import { motion, AnimatePresence } from 'framer-motion';
+import { childColours } from '../src/theme/colors';
+import { EmptyState } from './EmptyState';
 
 interface ChildrenProps {
   childrenList: Child[];
@@ -30,16 +33,14 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
   });
   const [newRule, setNewRule] = useState('');
 
-  // Color Configuration - explicitly defined so Tailwind checks them
-  const colorVariants: Record<string, { bg: string, header: string, avatar: string, text: string }> = {
-    blue: { bg: 'bg-blue-500', header: 'bg-blue-100', avatar: 'bg-blue-200', text: 'text-blue-600' },
-    pink: { bg: 'bg-pink-500', header: 'bg-pink-100', avatar: 'bg-pink-200', text: 'text-pink-600' },
-    green: { bg: 'bg-green-500', header: 'bg-green-100', avatar: 'bg-green-200', text: 'text-green-600' },
-    purple: { bg: 'bg-purple-500', header: 'bg-purple-100', avatar: 'bg-purple-200', text: 'text-purple-600' },
-    orange: { bg: 'bg-orange-500', header: 'bg-orange-100', avatar: 'bg-orange-200', text: 'text-orange-600' },
-    red: { bg: 'bg-red-500', header: 'bg-red-100', avatar: 'bg-red-200', text: 'text-red-600' }
+  // Color Configuration - using Theme
+  // Helper to get theme colors
+  const getThemeColor = (colorName: string) => {
+    const key = colorName.toLowerCase() as keyof typeof childColours;
+    return childColours[key] || childColours.shared;
   };
-  const colors = Object.keys(colorVariants);
+
+  const availableColors = ['olivia', 'annabelle', 'shared']; // Based on theme keys
 
   const validateEmailOrDomain = (value: string): boolean => {
     // Basic email regex
@@ -62,7 +63,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setFormData({
       name: '',
       schoolName: '',
-      color: 'blue',
+      color: 'olivia',
       emailRules: [],
       avatarUrl: `https://picsum.photos/seed/${Date.now()}/100/100`
     });
@@ -106,7 +107,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     const dataToSave = {
       name: formData.name || '',
       schoolName: formData.schoolName || '',
-      color: formData.color || 'blue',
+      color: formData.color || 'olivia',
       avatarUrl: formData.avatarUrl || `https://picsum.photos/seed/${Date.now()}/100/100`,
       emailRules: rulesToUse
     };
@@ -285,71 +286,96 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {childrenList.map((child) => (
-          <div key={child.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group">
-            <div className={`h-24 ${colorVariants[child.color]?.header || 'bg-slate-100'} flex items-center justify-center`}>
-              <div className={`w-20 h-20 ${colorVariants[child.color]?.avatar || 'bg-slate-200'} rounded-full flex items-center justify-center border-4 border-white shadow-sm mt-10`}>
-                <span className={`text-2xl font-bold ${colorVariants[child.color]?.text || 'text-slate-600'}`}>{child.name[0]}</span>
-              </div>
-            </div>
-
-            <div className="pt-12 p-6 text-center">
-              <h3 className="text-xl font-bold text-slate-900">{child.name}</h3>
-              <p className="text-slate-500 font-medium flex items-center justify-center gap-1.5 mt-1">
-                <School size={14} />
-                {child.schoolName}
-              </p>
-
-              <div className="mt-6 space-y-3 text-left">
-                <div className="flex justify-between items-end">
-                  <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Sources</div>
-                  <span className="text-xs text-slate-400">{child.emailRules?.length || 0} configured</span>
+        <AnimatePresence mode='popLayout'>
+          {childrenList.map((child, index) => {
+            const theme = getThemeColor(child.color);
+            return (
+              <motion.div
+                key={child.id}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group hover:shadow-md transition-shadow relative"
+              >
+                {/* Decorative Header */}
+                <div
+                  className="h-24 flex items-center justify-center relative"
+                  style={{ backgroundColor: theme.light }}
+                >
+                  <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent"></div>
+                  <div
+                    className="w-20 h-20 rounded-full flex items-center justify-center border-4 border-white shadow-sm mt-10 z-10"
+                    style={{ backgroundColor: theme.primary, color: 'white' }}
+                  >
+                    <span className="text-3xl font-bold">{child.name[0]}</span>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  {child.emailRules?.slice(0, 2).map((rule, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
-                      <Mail size={14} className="text-slate-400 mt-1" />
-                      <p className="text-xs font-medium text-slate-600 break-all">{rule}</p>
+                <div className="pt-12 p-6 text-center">
+                  <h3 className="text-xl font-bold text-slate-900">{child.name}</h3>
+                  <p className="text-slate-500 font-medium flex items-center justify-center gap-1.5 mt-1 text-sm">
+                    <School size={14} />
+                    {child.schoolName}
+                  </p>
+
+                  <div className="mt-6 space-y-3 text-left">
+                    <div className="flex justify-between items-end">
+                      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Email Sources</div>
+                      <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{child.emailRules?.length || 0}</span>
                     </div>
-                  ))}
-                  {(child.emailRules?.length || 0) > 2 && (
-                    <p className="text-xs text-center text-slate-400 italic">+{(child.emailRules?.length || 0) - 2} more</p>
-                  )}
-                  {(child.emailRules?.length || 0) === 0 && (
-                    <p className="text-xs text-center text-slate-400 italic py-2">No email sources configured</p>
-                  )}
+
+                    <div className="space-y-2">
+                      {/* Only show up to 2 rules, rest hidden */}
+                      {child.emailRules?.slice(0, 2).map((rule, idx) => (
+                        <div key={idx} className="flex items-start gap-3 p-2 rounded-lg bg-slate-50 border border-slate-100">
+                          <Mail size={14} className="text-slate-400 mt-1 shrink-0" />
+                          <p className="text-xs font-medium text-slate-600 break-all line-clamp-1">{rule}</p>
+                        </div>
+                      ))}
+                      {(child.emailRules?.length || 0) > 2 && (
+                        <p className="text-xs text-center text-slate-400 italic bg-slate-50 py-1 rounded-md border border-slate-100/50">+{(child.emailRules?.length || 0) - 2} more sources</p>
+                      )}
+                      {(child.emailRules?.length || 0) === 0 && (
+                        <p className="text-xs text-center text-slate-400 italic py-3 border border-dashed border-slate-200 rounded-lg">No email sources configured</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between">
+                    <button
+                      onClick={() => handleEdit(child)}
+                      className="text-slate-500 hover:text-indigo-600 text-sm font-medium flex items-center gap-1.5 transition-colors px-3 py-2 hover:bg-indigo-50 rounded-lg"
+                    >
+                      <Edit2 size={16} /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(child)}
+                      className="text-slate-500 hover:text-red-600 text-sm font-medium flex items-center gap-1.5 transition-colors px-3 py-2 hover:bg-red-50 rounded-lg"
+                    >
+                      <Trash2 size={16} /> Remove
+                    </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
 
-              <div className="mt-6 pt-6 border-t border-slate-100 flex justify-between">
-                <button
-                  onClick={() => handleEdit(child)}
-                  className="text-slate-500 hover:text-indigo-600 text-sm font-medium flex items-center gap-1 transition-colors"
-                >
-                  <Edit2 size={14} /> Edit
-                </button>
-                <button
-                  onClick={() => handleDelete(child)}
-                  className="text-slate-500 hover:text-red-600 text-sm font-medium flex items-center gap-1 transition-colors"
-                >
-                  <Trash2 size={14} /> Remove
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Add New Placeholder */}
-        <button
+        {/* Add New Placeholder/Button */}
+        <motion.button
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           onClick={handleAdd}
-          className="border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-slate-50 transition-all min-h-[300px]"
+          className="border-2 border-dashed border-slate-300 rounded-2xl p-6 flex flex-col items-center justify-center text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-slate-50 transition-all min-h-[350px] group"
         >
-          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4 group-hover:bg-indigo-100 group-hover:scale-110 transition-all">
             <Plus size={32} />
           </div>
           <span className="font-semibold">Add another child</span>
-        </button>
+        </motion.button>
       </div>
 
       {/* Edit/Add Modal */}
@@ -440,15 +466,22 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-2">Color Tag</label>
-                      <div className="flex gap-2">
-                        {colors.map(c => (
-                          <button
-                            key={c}
-                            onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                            className={`w-8 h-8 rounded-full ${colorVariants[c].bg} ${formData.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
-                          />
-                        ))}
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Color Theme</label>
+                      <div className="flex gap-3">
+                        {availableColors.map(key => {
+                          const theme = getThemeColor(key);
+                          const isSelected = formData.color === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => setFormData(prev => ({ ...prev, color: key }))}
+                              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${isSelected ? 'ring-2 ring-offset-2 ring-slate-400 scale-110' : ''}`}
+                              style={{ backgroundColor: theme.primary }}
+                            >
+                              {isSelected && <CheckCircle2 size={20} className="text-white" />}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   </div>

@@ -4,12 +4,23 @@ import { Email, Child, CategoryType, SchoolEvent, ActionItem } from '../types';
 import { Mail, RefreshCw, Plus, ArrowRight, Loader2, Sparkles, CheckCircle2, MessageSquare, Copy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { analyzeEmailWithGemini, generateDraftReply } from '../services/geminiService';
+import { motion, AnimatePresence } from 'framer-motion';
+import { childColours } from '../src/theme/colors';
+import { EmptyState } from './EmptyState';
 
 interface InboxProps {
   emails: Email[];
   childrenList: Child[];
   onEmailProcessed: (email: Email, events: SchoolEvent[], actions: ActionItem[]) => void;
 }
+
+const copyToClipboard = (text: string) => {
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Copied to clipboard!');
+  }, (err) => {
+    console.error('Could not copy text: ', err);
+  });
+};
 
 const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed }) => {
   const [showProcessor, setShowProcessor] = useState(false);
@@ -123,14 +134,18 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
     setDraftingForId(null);
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert("Draft copied to clipboard!");
-    setDraftResult(null);
+
+
+  const getChildTheme = (childName?: string) => {
+    // Find theme by name if possible, else default
+    if (!childName) return null;
+    // Simple lookup for demo purposes since we don't have the color key stored in name
+    const key = Object.keys(childColours).find(k => k === childName.toLowerCase()) as keyof typeof childColours;
+    return childColours[key] || childColours.shared; // fallback
   };
 
   return (
-    <div className="space-y-6 pb-20 lg:pb-0"> {/* Added padding bottom for mobile fab clearance if needed, or just general spacing */}
+    <div className="space-y-6 pb-20 lg:pb-0">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-900">Inbox</h2>
         <button
@@ -147,106 +162,145 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
       </div>
 
       {/* Main Inbox List */}
-      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] overflow-hidden">
-        {emails.map((email, idx) => {
-          const child = childrenList.find(c => c.id === email.childId);
-          const isDrafting = draftingForId === email.id;
-          const showDraft = draftResult?.id === email.id;
+      <div className="space-y-3">
+        {emails.length === 0 ? (
+          <EmptyState
+            icon={Mail}
+            title="Inbox is empty"
+            description="New school emails will appear here when synced."
+          />
+        ) : (
+          <AnimatePresence mode='popLayout'>
+            {emails.map((email, idx) => {
+              const child = childrenList.find(c => c.id === email.childId);
+              // Try to match theme color
+              const theme = child ? (childColours[child.color as keyof typeof childColours] || childColours.shared) : childColours.shared;
 
-          // Prepare extended preview text
-          const previewText = email.body
-            ? email.body.substring(0, 500).replace(/\s+/g, ' ')
-            : email.preview;
+              const isDrafting = draftingForId === email.id;
+              const showDraft = draftResult?.id === email.id;
 
-          return (
-            <div
-              key={email.id}
-              className={`p-4 md:p-5 flex flex-col gap-3 md:gap-4 hover:bg-slate-50 transition-colors cursor-pointer border-b border-slate-100 last:border-0`}
-            >
-              <div className="flex gap-3 md:gap-4">
-                <div className="mt-1 text-slate-400 shrink-0">
-                  <Mail size={20} />
-                </div>
-                <div className="flex-1 min-w-0"> {/* min-w-0 ensures text truncation works */}
-                  <div className="flex justify-between items-start mb-1">
-                    <h3 className="font-semibold text-slate-900 truncate pr-2">{email.subject}</h3>
-                    <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">{format(parseISO(email.receivedAt), 'MMM d')}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 mb-2">
-                    <span className="text-sm text-slate-500 truncate max-w-[120px]">{email.sender}</span>
-                    {child && (
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full bg-${child.color}-100 text-${child.color}-700 font-bold uppercase tracking-wider`}>
-                        {child.name}
-                      </span>
+              // Prepare extended preview text
+              const previewText = email.body
+                ? email.body.substring(0, 500).replace(/\s+/g, ' ')
+                : email.preview;
+
+              return (
+                <motion.div
+                  key={email.id}
+                  layout
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  whileTap={{ scale: 0.99 }}
+                  transition={{ duration: 0.2, delay: idx * 0.05 }}
+                  className={`bg-white rounded-2xl border transition-all cursor-pointer relative overflow-hidden group
+                    ${email.isProcessed ? 'border-slate-200 shadow-sm' : 'border-indigo-100 shadow-[0_2px_8px_rgba(99,102,241,0.1)]'}
+                    hover:shadow-md hover:border-indigo-200
+                  `}
+                  onClick={() => {
+                    // Expanding logic could go here, for now it just processes if not processed
+                  }}
+                >
+                  {/* Unread/Process Indicator Strip */}
+                  {!email.isProcessed && <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500"></div>}
+
+                  <div className="p-4 md:p-5 flex flex-col gap-3 md:gap-4">
+                    <div className="flex gap-3 md:gap-4">
+                      <div className={`mt-1 shrink-0 p-2 rounded-full ${email.isProcessed ? 'bg-slate-100 text-slate-400' : 'bg-indigo-50 text-indigo-600'}`}>
+                        <Mail size={20} />
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3 className={`font-semibold truncate pr-2 ${email.isProcessed ? 'text-slate-700' : 'text-slate-900'}`}>{email.subject}</h3>
+                          <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">{format(parseISO(email.receivedAt), 'MMM d')}</span>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="text-sm text-slate-500 truncate max-w-[120px]">{email.sender}</span>
+                          {child && (
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                              style={{ backgroundColor: theme.light, color: theme.dark }}
+                            >
+                              {child.name}
+                            </span>
+                          )}
+                          {email.isProcessed && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-bold uppercase tracking-wider flex items-center gap-1 border border-green-100">
+                              <Sparkles size={10} /> <span className="hidden sm:inline">AI Processed</span><span className="sm:hidden">AI</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {email.summary ? (
+                          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <span className="font-semibold text-indigo-600 block mb-1 text-xs uppercase tracking-wide">Summary</span>
+                            {email.summary}
+                          </p>
+                        ) : (
+                          <p className="text-sm text-slate-500 line-clamp-2 md:line-clamp-3">{previewText}</p>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-col items-center justify-start gap-2 shrink-0">
+                        {!email.isProcessed && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRawEmailText(email.body || email.preview);
+                              setProcessingEmailId(email.id);
+                              setShowProcessor(true);
+                            }}
+                            className="p-2 rounded-full text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                            title="Analyze with AI"
+                          >
+                            <Sparkles size={20} />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDraftReply(e, email)}
+                          className={`p-2 rounded-full transition-colors ${isDrafting ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600'}`}
+                          title="Draft Reply with Gemini"
+                          disabled={isDrafting}
+                        >
+                          {isDrafting ? <Loader2 size={20} className="animate-spin" /> : <MessageSquare size={20} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Generated Draft UI */}
+                    {showDraft && (
+                      <div className="ml-0 md:ml-12 p-4 bg-indigo-50 border border-indigo-100 rounded-xl relative animate-in fade-in slide-in-from-top-2">
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 flex items-center gap-1">
+                          <Sparkles size={12} /> Gemini Draft Suggestion
+                        </h4>
+                        <div className="text-sm text-slate-800 whitespace-pre-line mb-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
+                          {draftResult.text}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); copyToClipboard(draftResult.text); }}
+                            className="flex-1 md:flex-none text-xs font-medium bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1.5 shadow-sm"
+                          >
+                            <Copy size={12} /> Copy
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDraftResult(null); }}
+                            className="flex-1 md:flex-none text-xs font-medium text-slate-500 hover:text-slate-800 px-3 py-2 bg-white border border-slate-200 rounded-lg"
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    {email.isProcessed && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold uppercase tracking-wider flex items-center gap-1">
-                        <Sparkles size={10} /> <span className="hidden sm:inline">AI Processed</span><span className="sm:hidden">AI</span>
-                      </span>
-                    )}
                   </div>
-                  {email.summary ? (
-                    <p className="text-sm text-slate-600 bg-slate-50 p-2 rounded border border-slate-100">
-                      <span className="font-semibold text-indigo-600">Summary: </span>{email.summary}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-slate-500 line-clamp-2 md:line-clamp-3">{previewText}</p>
-                  )}
-                </div>
-                <div className="flex flex-col items-center justify-start gap-2 shrink-0">
-                  {!email.isProcessed && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRawEmailText(email.body || email.preview);
-                        setProcessingEmailId(email.id);
-                        setShowProcessor(true);
-                      }}
-                      className="p-2 rounded-full text-slate-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
-                      title="Analyze with AI"
-                    >
-                      <Sparkles size={20} />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => handleDraftReply(e, email)}
-                    className={`p-2 rounded-full transition-colors ${isDrafting ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:bg-indigo-50 hover:text-indigo-600'}`}
-                    title="Draft Reply with Gemini"
-                    disabled={isDrafting}
-                  >
-                    {isDrafting ? <Loader2 size={20} className="animate-spin" /> : <MessageSquare size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Generated Draft UI */}
-              {showDraft && (
-                <div className="ml-0 md:ml-9 p-4 bg-indigo-50 border border-indigo-100 rounded-xl relative animate-in fade-in slide-in-from-top-2">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2 flex items-center gap-1">
-                    <Sparkles size={12} /> Gemini Draft Suggestion
-                  </h4>
-                  <div className="text-sm text-slate-800 whitespace-pre-line mb-3 bg-white p-3 rounded-lg border border-indigo-100">
-                    {draftResult.text}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); copyToClipboard(draftResult.text); }}
-                      className="flex-1 md:flex-none text-xs font-medium bg-indigo-600 text-white px-3 py-2 rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-1.5"
-                    >
-                      <Copy size={12} /> Copy
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDraftResult(null); }}
-                      className="flex-1 md:flex-none text-xs font-medium text-slate-500 hover:text-slate-800 px-3 py-2 bg-white border border-slate-200 rounded-lg"
-                    >
-                      Discard
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        )}
       </div>
 
       {/* Email Processor Modal/Overlay */}
