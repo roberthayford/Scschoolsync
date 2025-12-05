@@ -32,6 +32,14 @@ const AppContent: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [syncHistory, setSyncHistory] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('schoolsync_sync_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const syncAbortRef = useRef(false);
 
 
@@ -237,6 +245,14 @@ const AppContent: React.FC = () => {
       }
 
       setLastSyncTime(new Date().toLocaleTimeString());
+
+      // Update Sync History
+      const timestamp = new Date().toLocaleString();
+      setSyncHistory(prev => {
+        const updated = [timestamp, ...prev].slice(0, 5); // Keep last 5
+        localStorage.setItem('schoolsync_sync_history', JSON.stringify(updated));
+        return updated;
+      });
     } catch (err) {
       console.error(err);
       setSyncStatus('Sync failed. Check console for details.');
@@ -400,6 +416,7 @@ const AppContent: React.FC = () => {
               isSyncing={isSyncing}
               syncStatus={syncStatus}
               lastSyncTime={lastSyncTime}
+              syncHistory={syncHistory}
               autoFetchSettings={autoFetchSettings}
               onUpdateAutoFetchSettings={updateAutoFetchSettings}
             />

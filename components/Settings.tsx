@@ -14,6 +14,7 @@ import { AutoFetchSettings } from '../src/hooks/useAutoSync';
 import { supabaseService } from '../src/services/supabaseService';
 import UserAccountSettings from '../src/components/UserAccountSettings';
 
+// Update interface
 interface SettingsProps {
   onEmailsImported: (emails: Email[]) => void;
   onDataCleared?: () => void;
@@ -22,6 +23,7 @@ interface SettingsProps {
   isSyncing?: boolean;
   syncStatus?: string | null;
   lastSyncTime?: string | null;
+  syncHistory?: string[];
   autoFetchSettings?: AutoFetchSettings;
   onUpdateAutoFetchSettings?: (settings: Partial<AutoFetchSettings>) => void;
 }
@@ -34,9 +36,17 @@ const Settings: React.FC<SettingsProps> = ({
   isSyncing = false,
   syncStatus,
   lastSyncTime,
+  syncHistory = [],
   autoFetchSettings,
   onUpdateAutoFetchSettings
 }) => {
+  // ... existing code ...
+
+  // ... existing code ...
+
+  // Inside the return JSX, specifically within the Auto-Fetch Scheduler UI block
+  // Locate where the scheduler radio buttons ends (around line 298), and add:
+
   const { user, signOut } = useAuth();
   const [isGapiReady, setIsGapiReady] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -293,6 +303,22 @@ const Settings: React.FC<SettingsProps> = ({
                               onChange={(e) => onUpdateAutoFetchSettings({ dailyTime: e.target.value })}
                               className="bg-white border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2"
                             />
+                          </div>
+                        )}
+
+                        {/* Recent Sync History Log */}
+                        {syncHistory.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-slate-200/60">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Recent Activity</p>
+                            <div className="space-y-2">
+                              {syncHistory.map((time, index) => (
+                                <div key={index} className="flex items-center gap-2 text-xs text-slate-600">
+                                  <div className={`w-1.5 h-1.5 rounded-full ${index === 0 ? 'bg-green-500' : 'bg-slate-300'}`}></div>
+                                  <span>{time}</span>
+                                  {index === 0 && <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Latest</span>}
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
