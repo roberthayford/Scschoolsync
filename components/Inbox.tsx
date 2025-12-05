@@ -78,7 +78,25 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
         isProcessed: true,
         childId: matchedChild.id,
         category: analysisResult.category as CategoryType,
-        summary: analysisResult.summary
+        summary: analysisResult.summary,
+        extractedEvents: analysisResult.events.map((evt: any, idx: number) => ({
+          id: `e-${Date.now()}-${idx}`,
+          title: evt.title,
+          date: evt.date,
+          time: evt.time,
+          location: evt.location,
+          childId: matchedChild.id,
+          category: analysisResult.category === CategoryType.EVENT_PARENT ? CategoryType.EVENT_PARENT : CategoryType.EVENT_ATTENDANCE
+        })),
+        extractedActions: analysisResult.actions.map((act: any, idx: number) => ({
+          id: `a-${Date.now()}-${idx}`,
+          title: act.title,
+          deadline: act.deadline,
+          childId: matchedChild.id,
+          isCompleted: false,
+          urgency: analysisResult.urgency,
+          relatedEmailId: original.id
+        }))
       };
     } else {
       // Create new manual email
@@ -91,7 +109,26 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
         isProcessed: true,
         childId: matchedChild.id,
         category: analysisResult.category as CategoryType,
-        summary: analysisResult.summary
+
+        summary: analysisResult.summary,
+        extractedEvents: analysisResult.events.map((evt: any, idx: number) => ({
+          id: `e-${Date.now()}-${idx}`,
+          title: evt.title,
+          date: evt.date,
+          time: evt.time,
+          location: evt.location,
+          childId: matchedChild.id,
+          category: analysisResult.category === CategoryType.EVENT_PARENT ? CategoryType.EVENT_PARENT : CategoryType.EVENT_ATTENDANCE
+        })),
+        extractedActions: analysisResult.actions.map((act: any, idx: number) => ({
+          id: `a-${Date.now()}-${idx}`,
+          title: act.title,
+          deadline: act.deadline,
+          childId: matchedChild.id,
+          isCompleted: false,
+          urgency: analysisResult.urgency,
+          relatedEmailId: `m-${Date.now()}`
+        }))
       };
     }
 
@@ -234,10 +271,36 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
                         </div>
 
                         {email.summary ? (
-                          <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <span className="font-semibold text-indigo-600 block mb-1 text-xs uppercase tracking-wide">Summary</span>
-                            {email.summary}
-                          </p>
+                          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-2">
+                            <div>
+                              <span className="font-semibold text-indigo-600 block mb-1 text-xs uppercase tracking-wide">Summary</span>
+                              <p className="text-sm text-slate-600">{email.summary}</p>
+                            </div>
+
+                            {(email.extractedEvents && email.extractedEvents.length > 0) || (email.extractedActions && email.extractedActions.length > 0) ? (
+                              <div className="pt-2 border-t border-slate-200 mt-2">
+                                <span className="font-semibold text-slate-500 block mb-2 text-xs uppercase tracking-wide">Key Dates & Actions</span>
+                                <div className="space-y-2">
+                                  {email.extractedEvents?.map((evt, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></div>
+                                      <span className="font-medium">{evt.title}</span>
+                                      <span className="text-slate-400">-</span>
+                                      <span className="text-slate-500">{format(parseISO(evt.date), 'MMM d')} {evt.time}</span>
+                                    </div>
+                                  ))}
+                                  {email.extractedActions?.map((act, i) => (
+                                    <div key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                                      <div className="mt-1 w-1.5 h-1.5 rounded-full bg-red-400 shrink-0"></div>
+                                      <span className="font-medium">{act.title}</span>
+                                      <span className="text-slate-400">-</span>
+                                      <span className="text-red-500 text-xs font-semibold uppercase">Due {format(parseISO(act.deadline), 'MMM d')}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+                          </div>
                         ) : (
                           <p className="text-sm text-slate-500 line-clamp-2 md:line-clamp-3">{previewText}</p>
                         )}

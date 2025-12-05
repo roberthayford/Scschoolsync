@@ -5,6 +5,7 @@ type Theme = 'light' | 'dark' | 'system';
 interface ThemeContextType {
     theme: Theme;
     setTheme: (theme: Theme) => void;
+    resolvedTheme: 'light' | 'dark';
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -17,6 +18,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return 'system';
     });
 
+    const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
+
     useEffect(() => {
         const root = window.document.documentElement;
 
@@ -26,12 +29,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
         const applyTheme = (t: Theme) => {
             removeOldTheme();
+            let effectiveTheme: 'light' | 'dark';
+
             if (t === 'system') {
-                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                root.classList.add(systemTheme);
+                effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             } else {
-                root.classList.add(t);
+                effectiveTheme = t;
             }
+
+            root.classList.add(effectiveTheme);
+            setResolvedTheme(effectiveTheme);
         };
 
         applyTheme(theme);
@@ -47,7 +54,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [theme]);
 
     return (
-        <ThemeContext.Provider value={{ theme, setTheme }}>
+        <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
             {children}
         </ThemeContext.Provider>
     );
