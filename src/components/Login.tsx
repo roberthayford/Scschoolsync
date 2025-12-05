@@ -29,7 +29,8 @@ const Login: React.FC = () => {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
             <div className="p-8 bg-white rounded-lg shadow-md w-96">
-                <h1 className="mb-6 text-2xl font-bold text-center text-gray-800">SchoolSync Login</h1>
+                <h1 className="mb-2 text-2xl font-bold text-center text-gray-800">Welcome to SchoolSync</h1>
+                <p className="mb-6 text-center text-gray-600">Sign in or create an account via Magic Link</p>
                 <form onSubmit={handleLogin} className="flex flex-col space-y-4">
                     <input
                         type="email"
@@ -44,7 +45,7 @@ const Login: React.FC = () => {
                         disabled={loading}
                         className="p-2 text-white bg-blue-600 rounded hover:bg-blue-700 disabled:bg-blue-300"
                     >
-                        {loading ? 'Sending Magic Link...' : 'Send Magic Link'}
+                        {loading ? 'Sending Magic Link...' : 'Send Magic Link (Sign In / Sign Up)'}
                     </button>
                 </form>
                 {message && <p className="mt-4 text-center text-sm text-gray-600">{message}</p>}
