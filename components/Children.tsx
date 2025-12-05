@@ -30,7 +30,16 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
   });
   const [newRule, setNewRule] = useState('');
 
-  const colors = ['blue', 'pink', 'green', 'purple', 'orange', 'red'];
+  // Color Configuration - explicitly defined so Tailwind checks them
+  const colorVariants: Record<string, { bg: string, header: string, avatar: string, text: string }> = {
+    blue: { bg: 'bg-blue-500', header: 'bg-blue-100', avatar: 'bg-blue-200', text: 'text-blue-600' },
+    pink: { bg: 'bg-pink-500', header: 'bg-pink-100', avatar: 'bg-pink-200', text: 'text-pink-600' },
+    green: { bg: 'bg-green-500', header: 'bg-green-100', avatar: 'bg-green-200', text: 'text-green-600' },
+    purple: { bg: 'bg-purple-500', header: 'bg-purple-100', avatar: 'bg-purple-200', text: 'text-purple-600' },
+    orange: { bg: 'bg-orange-500', header: 'bg-orange-100', avatar: 'bg-orange-200', text: 'text-orange-600' },
+    red: { bg: 'bg-red-500', header: 'bg-red-100', avatar: 'bg-red-200', text: 'text-red-600' }
+  };
+  const colors = Object.keys(colorVariants);
 
   const validateEmailOrDomain = (value: string): boolean => {
     // Basic email regex
@@ -278,9 +287,9 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {childrenList.map((child) => (
           <div key={child.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group">
-            <div className={`h-24 bg-${child.color}-100 flex items-center justify-center`}>
-              <div className={`w-20 h-20 bg-${child.color}-200 rounded-full flex items-center justify-center border-4 border-white shadow-sm mt-10`}>
-                <span className={`text-2xl font-bold text-${child.color}-600`}>{child.name[0]}</span>
+            <div className={`h-24 ${colorVariants[child.color]?.header || 'bg-slate-100'} flex items-center justify-center`}>
+              <div className={`w-20 h-20 ${colorVariants[child.color]?.avatar || 'bg-slate-200'} rounded-full flex items-center justify-center border-4 border-white shadow-sm mt-10`}>
+                <span className={`text-2xl font-bold ${colorVariants[child.color]?.text || 'text-slate-600'}`}>{child.name[0]}</span>
               </div>
             </div>
 
@@ -437,7 +446,7 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
                           <button
                             key={c}
                             onClick={() => setFormData(prev => ({ ...prev, color: c }))}
-                            className={`w-8 h-8 rounded-full bg-${c}-500 ${formData.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
+                            className={`w-8 h-8 rounded-full ${colorVariants[c].bg} ${formData.color === c ? 'ring-2 ring-offset-2 ring-slate-400' : ''}`}
                           />
                         ))}
                       </div>
