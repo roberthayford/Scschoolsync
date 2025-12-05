@@ -151,8 +151,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
         )}
       </AnimatePresence>
 
-      {/* Sticky Actions Banner */}
-      <div className="-mx-4 -mt-4 md:mt-0 md:mx-0 mb-4 sticky top-16 md:top-0 z-40 shadow-sm">
+      {/* Actions Banner */}
+      <div className="mb-6">
         <ActionsBanner
           actions={pendingActions}
           onClick={() => navigate('/actions')}
