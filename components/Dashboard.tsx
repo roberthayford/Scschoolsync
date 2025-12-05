@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation, Link, useNavigate } from 'react-router-dom';
 import {
-  Calendar,
-  CheckCircle,
-  AlertCircle,
   ArrowRight,
-  Clock,
   Sparkles,
   Loader2,
-  X
+  X,
+  CalendarDays
 } from 'lucide-react';
 import {
   BarChart,
@@ -19,25 +16,30 @@ import {
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
-import { format, isToday, isThisWeek, addWeeks, startOfWeek, endOfWeek, parseISO, isSameDay, isWithinInterval } from 'date-fns';
-import { Child, ActionItem, SchoolEvent, UrgencyLevel, CategoryType } from '../types';
+import { isToday, isTomorrow, isThisWeek, parseISO, compareAsc } from 'date-fns';
+import { Child, ActionItem, SchoolEvent } from '../types';
 import { askDashboardAgent } from '../services/geminiService';
 import { useAuth } from '../src/contexts/AuthContext';
+
+// New Components
+import { EventCard } from './EventCard';
+import { ActionCard } from './ActionCard';
+import { ActionsBanner } from './ActionsBanner';
+import { EmptyState } from './EmptyState';
 
 interface DashboardProps {
   childrenList: Child[];
   events: SchoolEvent[];
   actions: ActionItem[];
+  onToggleAction: (id: string) => void;
 }
 
-type TimePeriod = 'today' | 'this-week' | 'next-week';
-
-const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) => {
+const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, onToggleAction }) => {
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('today');
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const displayName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
 
@@ -50,47 +52,26 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
 
   const greeting = getGreeting();
 
-  // Time period filtering helpers
-  const isInTimePeriod = (dateStr: string | undefined): boolean => {
-    if (!dateStr) return false;
-    const now = new Date();
-    const itemDate = parseISO(dateStr);
+  // --- Data Processing for Continuous Timeline ---
 
-    switch (timePeriod) {
-      case 'today':
-        return isToday(itemDate);
-      case 'this-week':
-        return isThisWeek(itemDate, { weekStartsOn: 0 });
-      case 'next-week':
-        const nextWeekStart = startOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
-        const nextWeekEnd = endOfWeek(addWeeks(now, 1), { weekStartsOn: 0 });
-        return isWithinInterval(itemDate, { start: nextWeekStart, end: nextWeekEnd });
-      default:
-        return true;
-    }
-  };
+  // Sort events chronologically
+  const sortedEvents = [...events].sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
 
-  // Filter events and actions based on selected time period
-  const filteredEvents = events
-    .filter(e => isInTimePeriod(e.date))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  // Group events
+  const todayEvents = sortedEvents.filter(e => isToday(parseISO(e.date)));
+  const tomorrowEvents = sortedEvents.filter(e => isTomorrow(parseISO(e.date)));
+  const thisWeekEvents = sortedEvents.filter(e =>
+    !isToday(parseISO(e.date)) &&
+    !isTomorrow(parseISO(e.date)) &&
+    isThisWeek(parseISO(e.date), { weekStartsOn: 1 })
+  );
 
-  const filteredActions = actions
-    .filter(a => !a.isCompleted && isInTimePeriod(a.deadline))
-    .sort((a, b) => {
-      const dateA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-      const dateB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-      return dateA - dateB;
-    });
+  // Urgent/Pending Actions for Banner (overdue or due soon)
+  // Logic: Actions not completed
+  const pendingActions = actions.filter(a => !a.isCompleted);
 
-  // Sort actions by urgency and deadline for urgent actions section
-  const urgentActions = actions
-    .filter(a => !a.isCompleted)
-    .sort((a, b) => {
-      const urgencyMap = { [UrgencyLevel.CRITICAL]: 3, [UrgencyLevel.HIGH]: 2, [UrgencyLevel.MEDIUM]: 1, [UrgencyLevel.LOW]: 0 };
-      return urgencyMap[b.urgency] - urgencyMap[a.urgency];
-    })
-    .slice(0, 3);
+  // Helper to find child for an item
+  const getChild = (childId: string) => childrenList.find(c => c.id === childId);
 
   // Chart Data Preparation
   const chartData = childrenList.map(child => {
@@ -103,36 +84,18 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
     };
   });
 
-  const getUrgencyBadge = (level: UrgencyLevel) => {
-    switch (level) {
-      case UrgencyLevel.CRITICAL: return 'bg-red-100 text-red-700 border-red-200';
-      case UrgencyLevel.HIGH: return 'bg-orange-100 text-orange-700 border-orange-200';
-      case UrgencyLevel.MEDIUM: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-      default: return 'bg-slate-100 text-slate-700 border-slate-200';
-    }
-  };
-
-  const getTimePeriodLabel = () => {
-    switch (timePeriod) {
-      case 'today': return "Today's";
-      case 'this-week': return "This Week's";
-      case 'next-week': return "Next Week's";
-    }
-  };
-
   const handleAskAgent = async () => {
     if (!query.trim()) return;
     setIsAsking(true);
     setAnswer(null);
     try {
-      // Simulate context enrichment by adding child names
       const enrichedEvents = events.map(e => ({
         ...e,
-        childName: childrenList.find(c => c.id === e.childId)?.name || 'Unknown'
+        childName: getChild(e.childId)?.name || 'Unknown'
       }));
       const enrichedActions = actions.map(a => ({
         ...a,
-        childName: childrenList.find(c => c.id === a.childId)?.name || 'Unknown'
+        childName: getChild(a.childId)?.name || 'Unknown'
       }));
 
       const response = await askDashboardAgent(query, { events: enrichedEvents, actions: enrichedActions });
@@ -145,227 +108,173 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
   };
 
   return (
-    <div className="space-y-6 pb-6">
+    <div className="space-y-6 pb-20 md:pb-6 relative">
 
-      {/* Welcome Section */}
+      {/* Sticky Actions Banner */}
+      <div className="-mx-4 -mt-4 md:mt-0 md:mx-0 mb-4 sticky top-16 md:top-0 z-40 shadow-sm">
+        <ActionsBanner
+          actions={pendingActions}
+          onClick={() => navigate('/actions')}
+        />
+      </div>
+
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">{greeting}, {displayName} 👋</h2>
-          <p className="text-slate-500">Here is what's happening with school today.</p>
+          {/* Date Display */}
+          <p className="text-slate-500 font-medium text-sm">
+            {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
+          </p>
+          <h2 className="text-2xl font-bold text-slate-900 mt-1">{greeting}, {displayName} 👋</h2>
         </div>
-        <div className="flex gap-3">
-          <Link to="/inbox" className="w-full md:w-auto px-5 py-3 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 flex items-center justify-center gap-2">
-            <span>Process New Emails</span>
-            <ArrowRight size={18} />
-          </Link>
-        </div>
+
+        {/* Quick Process Button (Hidden on mobile if desired, or kept small) */}
+        <Link to="/inbox" className="hidden md:flex bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors items-center gap-2 shadow-sm">
+          <span>Synced just now</span>
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        </Link>
       </div>
 
-      {/* Time Period Filter Tabs - Scrollable on mobile or stacked */}
-      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-fit overflow-x-auto no-scrollbar md:overflow-visible">
-        <button
-          onClick={() => setTimePeriod('today')}
-          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'today'
-            ? 'bg-indigo-600 text-white shadow-md'
-            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          Today
-        </button>
-        <button
-          onClick={() => setTimePeriod('this-week')}
-          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'this-week'
-            ? 'bg-indigo-600 text-white shadow-md'
-            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          This Week
-        </button>
-        <button
-          onClick={() => setTimePeriod('next-week')}
-          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'next-week'
-            ? 'bg-indigo-600 text-white shadow-md'
-            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
-            }`}
-        >
-          Next Week
-        </button>
-      </div>
+      {/* Main Content Grid */}
+      <div className="flex flex-col lg:flex-row gap-6">
 
-      {/* AI Assistant Section */}
-      <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 rounded-3xl p-6 md:p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
-        {/* Decorative background circle */}
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+        {/* Left Column: Timeline (Events & Actions mixed could be better, but separating for now as per design) */}
+        <div className="flex-1 space-y-8">
 
-        <div className="flex flex-col md:flex-row items-start gap-4 relative z-10">
-          <div className="bg-white/20 p-3 rounded-xl shrink-0 hidden md:block">
-            <Sparkles size={24} className="text-white" />
-          </div>
-          <div className="flex-1 w-full">
-            <div className="flex items-center gap-2 md:hidden mb-2">
-              <Sparkles size={20} className="text-white" />
-              <h3 className="font-bold text-lg">AI Schedule Assistant</h3>
-            </div>
-            <h3 className="font-bold text-lg mb-1 hidden md:block">AI Schedule Assistant</h3>
-            <p className="text-indigo-100 text-sm mb-4">Ask about upcoming events, payments, or what you might have missed.</p>
-
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Ask about events, payments..."
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all pr-12"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleAskAgent()}
+          {/* TODAY Section */}
+          <section>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Today</h3>
+            {todayEvents.length > 0 ? (
+              todayEvents.map(event => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  child={getChild(event.childId)}
+                />
+              ))
+            ) : (
+              <EmptyState
+                icon={CalendarDays}
+                title="All clear for today! ✨"
+                description={tomorrowEvents.length > 0 ? "Check tomorrow's schedule below." : "No events scheduled for today."}
               />
-              <button
-                onClick={handleAskAgent}
-                className="absolute right-2 top-2 p-1.5 bg-white text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors disabled:opacity-50"
-                disabled={isAsking || !query.trim()}
-              >
-                {isAsking ? <Loader2 className="animate-spin" size={20} /> : <ArrowRight size={20} />}
-              </button>
-            </div>
-
-            {answer && (
-              <div className="mt-4 bg-white/10 border border-white/20 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 relative">
-                <button
-                  onClick={() => { setAnswer(null); setQuery(''); }}
-                  className="absolute top-2 right-2 text-indigo-200 hover:text-white"
-                >
-                  <X size={14} />
-                </button>
-                <div className="flex gap-2">
-                  <Sparkles size={16} className="text-yellow-300 mt-0.5 shrink-0" />
-                  <p className="text-sm leading-relaxed">{answer}</p>
-                </div>
-              </div>
             )}
-          </div>
-        </div>
-      </div>
+          </section>
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* TOMORROW Section */}
+          <section>
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Tomorrow</h3>
+            {tomorrowEvents.length > 0 ? (
+              tomorrowEvents.map(event => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  child={getChild(event.childId)}
+                />
+              ))
+            ) : (
+              <p className="text-slate-400 text-sm italic ml-2">Nothing scheduled for tomorrow yet.</p>
+            )}
+          </section>
 
-        {/* Events Card - Native scroll on mobile, contained scroll on desktop */}
-        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <Calendar size={20} className="text-indigo-500" />
-              {getTimePeriodLabel()} Events
-            </h3>
-            <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded-full">
-              {filteredEvents.length}
-            </span>
-          </div>
+          {/* THIS WEEK Section (Collapsed/List style could go here, for now using standard cards) */}
+          {thisWeekEvents.length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Rest of this Week</h3>
+                <Link to="/timeline" className="text-indigo-600 text-sm font-medium hover:underline">View Calendar</Link>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {thisWeekEvents.map(event => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    child={getChild(event.childId)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-          {filteredEvents.length > 0 ? (
-            <div className="space-y-3 lg:max-h-80 lg:overflow-y-auto pr-1">
-              {filteredEvents.map(evt => {
-                const child = childrenList.find(c => c.id === evt.childId);
-                const eventDate = parseISO(evt.date);
-                const showDate = timePeriod !== 'today';
-                return (
-                  <div key={evt.id} className="flex items-start gap-4 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <div className={`w-1 h-12 rounded-full bg-${child?.color || 'gray'}-500 shrink-0`}></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h4 className="font-medium text-slate-900 text-sm md:text-base">{evt.title}</h4>
-                        <div className="flex flex-col md:flex-row gap-1 md:gap-2 items-end md:items-center">
-                          {showDate && (
-                            <span className="text-[10px] md:text-xs font-semibold px-2 py-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
-                              {format(eventDate, 'EEE, MMM d')}
-                            </span>
-                          )}
-                          <span className="text-[10px] md:text-xs font-semibold px-2 py-1 rounded bg-white border border-slate-200 text-slate-600">{evt.time}</span>
-                        </div>
-                      </div>
-                      <p className="text-xs md:text-sm text-slate-500 mt-1">{child?.name} • {evt.location || 'School'}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-              <CheckCircle size={32} className="mb-2 opacity-50" />
-              <p>No events {timePeriod === 'today' ? 'today' : timePeriod === 'this-week' ? 'this week' : 'next week'}.</p>
-            </div>
+          {/* PENDING ACTIONS (Inline if high value) */}
+          {pendingActions.length > 0 && (
+            <section className="pt-4 border-t border-slate-100">
+              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Outstanding Actions</h3>
+              {pendingActions.slice(0, 3).map(action => (
+                <ActionCard
+                  key={action.id}
+                  action={action}
+                  child={getChild(action.childId)}
+                  onToggle={onToggleAction}
+                />
+              ))}
+              {pendingActions.length > 3 && (
+                <Link to="/actions" className="block text-center text-sm text-indigo-600 font-medium py-2 hover:bg-indigo-50 rounded-lg transition-colors">
+                  View {pendingActions.length - 3} more actions
+                </Link>
+              )}
+            </section>
           )}
         </div>
 
-        {/* Actions Due Card */}
-        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-              <AlertCircle size={20} className="text-orange-500" />
-              {getTimePeriodLabel()} Actions
-            </h3>
-            <span className="bg-orange-100 text-orange-700 text-xs font-bold px-2 py-1 rounded-full">
-              {filteredActions.length}
-            </span>
-          </div>
+        {/* Right Column: AI & Widgets (Desktop) */}
+        <div className="w-full lg:w-80 xl:w-96 space-y-6">
 
-          <div className="space-y-3 lg:max-h-80 lg:overflow-y-auto pr-1">
-            {filteredActions.map(action => {
-              const child = childrenList.find(c => c.id === action.childId);
-              const showDate = timePeriod !== 'today';
-              return (
-                <div key={action.id} className="p-3 rounded-xl bg-white border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors cursor-pointer">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${getUrgencyBadge(action.urgency)}`}>
-                      {action.urgency}
-                    </span>
-                    {action.deadline && (
-                      <span className="text-xs text-slate-400">
-                        {showDate ? format(parseISO(action.deadline), 'EEE, MMM d') : format(parseISO(action.deadline), 'MMM d')}
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="text-sm font-medium text-slate-900 mb-1 leading-snug">{action.title}</h4>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full bg-${child?.color || 'gray'}-500`}></div>
-                    <span className="text-xs text-slate-500">{child?.name}</span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {filteredActions.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                <CheckCircle size={32} className="mb-2 opacity-50" />
-                <p>No actions due {timePeriod === 'today' ? 'today' : timePeriod === 'this-week' ? 'this week' : 'next week'}!</p>
+          {/* AI Assistant */}
+          <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="relative z-10">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles size={20} className="text-yellow-300" />
+                <h3 className="font-bold text-lg">Assistant</h3>
               </div>
-            )}
+              <p className="text-indigo-100 text-sm mb-4">Ask about schedules, payments, or find details.</p>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Ask anything..."
+                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 transition-all text-sm"
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAskAgent()}
+                />
+                <button
+                  onClick={handleAskAgent}
+                  className="absolute right-2 top-2 p-1 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                >
+                  {isAsking ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
+                </button>
+              </div>
+
+              {answer && (
+                <div className="mt-4 bg-white/10 rounded-lg p-3 text-sm animate-in fade-in">
+                  <p>{answer}</p>
+                  <button onClick={() => setAnswer(null)} className="absolute top-2 right-2 text-white/50 hover:text-white"><X size={12} /></button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
-            <Link to="/actions" className="text-sm font-medium text-indigo-600 hover:text-indigo-700">View All Actions &rarr;</Link>
+          {/* Activity Chart */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hidden md:block">
+            <h3 className="text-sm font-bold text-slate-800 mb-4">Activity Overview</h3>
+            <div className="h-48 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                  <Tooltip
+                    cursor={{ fill: '#f8fafc' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="Events" fill="#818cf8" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Bar dataKey="Actions Due" fill="#fca5a5" radius={[4, 4, 0, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Activity Stats */}
-      <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-slate-800">Activity Overview</h3>
-        </div>
-        <div className="h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-              <Tooltip
-                cursor={{ fill: '#f8fafc' }}
-                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-              />
-              <Bar dataKey="Events" fill="#818cf8" radius={[4, 4, 0, 0]} barSize={40} />
-              <Bar dataKey="Actions Due" fill="#fca5a5" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
       </div>
     </div>
   );

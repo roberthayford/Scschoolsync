@@ -391,6 +391,7 @@ const AppContent: React.FC = () => {
               childrenList={childrenList}
               events={events}
               actions={actions}
+              onToggleAction={handleToggleAction}
             />
           } />
 
