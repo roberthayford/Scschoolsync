@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Menu, X, Loader2, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Loader2 } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -9,7 +9,6 @@ interface LayoutProps {
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus }) => {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const location = useLocation();
 
   const navItems = [
@@ -29,19 +28,8 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
   return (
     <div className="flex h-screen bg-slate-50 text-slate-800 font-sans overflow-hidden">
 
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={`
-        fixed lg:relative z-30 w-72 h-full bg-white border-r border-slate-200/60 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] flex flex-col transition-transform duration-300 ease-in-out
-        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      {/* Sidebar - Hidden on Mobile, Visible on Desktop */}
+      <aside className="hidden lg:flex z-30 w-72 h-full bg-white border-r border-slate-200/60 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] flex-col">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -49,9 +37,6 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
             </div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight">SchoolSync</h1>
           </div>
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-500">
-            <X size={24} />
-          </button>
         </div>
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -59,7 +44,6 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
             <NavLink
               key={item.path}
               to={item.path}
-              onClick={() => setIsMobileMenuOpen(false)}
               className={({ isActive }) => `
                 flex items-center gap-3.5 px-4 py-3.5 rounded-xl transition-all duration-200 group
                 ${isActive
@@ -91,16 +75,10 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
+      <main className="flex-1 flex flex-col h-full overflow-hidden relative">
         {/* Header */}
-        <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-6 lg:px-10 z-10 sticky top-0">
+        <header className="h-16 lg:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/60 flex items-center justify-between px-4 lg:px-10 z-10 sticky top-0">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsMobileMenuOpen(true)}
-              className="lg:hidden p-2 -ml-2 text-slate-500 hover:bg-slate-100 rounded-lg"
-            >
-              <Menu size={24} />
-            </button>
             <h2 className="text-lg font-semibold text-slate-800">{getPageTitle()}</h2>
           </div>
           <div className="flex items-center gap-4">
@@ -116,9 +94,33 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
         </header>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8">
+        {/* Added make-bottom-nav-space class equivalent manually or via styling */}
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8">
           <div className="max-w-6xl mx-auto w-full">
             {children}
+          </div>
+        </div>
+
+        {/* Bottom Navigation Bar - Mobile Only */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40 pb-safe">
+          <div className="flex items-center justify-around h-16 px-2">
+            {navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => `
+                  flex flex-col items-center justify-center w-full h-full gap-1 transition-colors
+                  ${isActive ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    <item.icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+                    <span className="text-[10px] font-medium">{item.name}</span>
+                  </>
+                )}
+              </NavLink>
+            ))}
           </div>
         </div>
       </main>

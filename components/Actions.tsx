@@ -30,27 +30,27 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 pb-20 lg:pb-0"> {/* Padding for mobile nav */}
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-900">Actions</h2>
 
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto">
           <button
             onClick={() => setFilter('outstanding')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'outstanding' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`flex-1 md:flex-none px-4 py-2 md:py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'outstanding' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             Outstanding
           </button>
           <button
             onClick={() => setFilter('completed')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'completed' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            className={`flex-1 md:flex-none px-4 py-2 md:py-1.5 text-sm font-medium rounded-lg transition-all ${filter === 'completed' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
           >
             Completed
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-3 md:gap-4">
         {filteredActions.map(action => {
           const child = childrenList.find(c => c.id === action.childId);
           const daysLeft = action.deadline ? differenceInDays(parseISO(action.deadline), new Date()) : null;
@@ -60,31 +60,31 @@ const Actions: React.FC<ActionsProps> = ({ actions, childrenList, onToggleAction
             <div
               key={action.id}
               className={`
-                relative bg-white p-5 rounded-2xl border transition-all duration-200 flex items-start gap-4
+                relative bg-white p-4 md:p-5 rounded-2xl border transition-all duration-200 flex items-start gap-3 md:gap-4 group
                 ${action.isCompleted ? 'border-slate-100 opacity-60' : 'border-slate-200/60 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-300 hover:shadow-md'}
               `}
             >
               <button
                 onClick={() => onToggleAction(action.id)}
-                className={`mt-1 text-slate-400 hover:text-indigo-600 transition-colors ${action.isCompleted ? 'text-green-500' : ''}`}
+                className={`mt-1 md:mt-0.5 text-slate-400 hover:text-indigo-600 transition-colors p-1 -ml-1 ${action.isCompleted ? 'text-green-500' : ''}`}
               >
                 {action.isCompleted ? <CheckSquare size={24} /> : <Square size={24} />}
               </button>
 
-              <div className="flex-1">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1">
-                  <h3 className={`font-semibold text-lg ${action.isCompleted ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-1 md:gap-2 mb-1">
+                  <h3 className={`font-semibold text-base md:text-lg leading-snug ${action.isCompleted ? 'line-through text-slate-400' : 'text-slate-900'}`}>
                     {action.title}
                   </h3>
                   {!action.isCompleted && (
-                    <div className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider ${getUrgencyColor(action.urgency)}`}>
+                    <div className={`flex items-center gap-1.5 text-[10px] md:text-xs font-bold uppercase tracking-wider self-start md:self-auto ${getUrgencyColor(action.urgency)}`}>
                       {action.urgency === UrgencyLevel.CRITICAL && <AlertTriangle size={14} />}
-                      {action.urgency} Priority
+                      {action.urgency} <span className="hidden sm:inline">Priority</span>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-4 text-sm mt-2">
+                <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm mt-2">
                   <div className="flex items-center gap-2 px-2 py-1 rounded bg-slate-50 border border-slate-100">
                     <div className={`w-2 h-2 rounded-full bg-${child?.color || 'gray'}-500`}></div>
                     <span className="font-medium text-slate-600">{child?.name || 'Unknown'}</span>

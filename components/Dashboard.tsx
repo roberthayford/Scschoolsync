@@ -132,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-6">
 
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -141,18 +141,18 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
           <p className="text-slate-500">Here is what's happening with school today.</p>
         </div>
         <div className="flex gap-3">
-          <Link to="/inbox" className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 flex items-center gap-2">
+          <Link to="/inbox" className="w-full md:w-auto px-5 py-3 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-all shadow-lg shadow-indigo-200 hover:shadow-indigo-300 hover:-translate-y-0.5 flex items-center justify-center gap-2">
             <span>Process New Emails</span>
             <ArrowRight size={18} />
           </Link>
         </div>
       </div>
 
-      {/* Time Period Filter Tabs */}
-      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-fit">
+      {/* Time Period Filter Tabs - Scrollable on mobile or stacked */}
+      <div className="flex bg-white p-1.5 rounded-xl border border-slate-200 shadow-sm w-full md:w-fit overflow-x-auto no-scrollbar md:overflow-visible">
         <button
           onClick={() => setTimePeriod('today')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'today'
+          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'today'
             ? 'bg-indigo-600 text-white shadow-md'
             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
             }`}
@@ -161,7 +161,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
         </button>
         <button
           onClick={() => setTimePeriod('this-week')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'this-week'
+          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'this-week'
             ? 'bg-indigo-600 text-white shadow-md'
             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
             }`}
@@ -170,7 +170,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
         </button>
         <button
           onClick={() => setTimePeriod('next-week')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${timePeriod === 'next-week'
+          className={`flex-1 md:flex-none px-4 py-2 text-sm font-medium rounded-lg transition-all whitespace-nowrap ${timePeriod === 'next-week'
             ? 'bg-indigo-600 text-white shadow-md'
             : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
             }`}
@@ -180,22 +180,26 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       </div>
 
       {/* AI Assistant Section */}
-      <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 rounded-3xl p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
+      <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 rounded-3xl p-6 md:p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden group">
         {/* Decorative background circle */}
         <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
 
-        <div className="flex items-start gap-4 relative z-10">
-          <div className="bg-white/20 p-3 rounded-xl shrink-0">
+        <div className="flex flex-col md:flex-row items-start gap-4 relative z-10">
+          <div className="bg-white/20 p-3 rounded-xl shrink-0 hidden md:block">
             <Sparkles size={24} className="text-white" />
           </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-lg mb-1">AI Schedule Assistant</h3>
+          <div className="flex-1 w-full">
+            <div className="flex items-center gap-2 md:hidden mb-2">
+              <Sparkles size={20} className="text-white" />
+              <h3 className="font-bold text-lg">AI Schedule Assistant</h3>
+            </div>
+            <h3 className="font-bold text-lg mb-1 hidden md:block">AI Schedule Assistant</h3>
             <p className="text-indigo-100 text-sm mb-4">Ask about upcoming events, payments, or what you might have missed.</p>
 
             <div className="relative">
               <input
                 type="text"
-                placeholder="Try: 'Do I have any payments due this week?' or 'When is Emma's swimming?'"
+                placeholder="Ask about events, payments..."
                 className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 focus:border-white/40 transition-all pr-12"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
@@ -231,8 +235,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {/* Events Card - Now filtered by time period */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 lg:col-span-2 hover:shadow-md transition-shadow duration-300">
+        {/* Events Card - Native scroll on mobile, contained scroll on desktop */}
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <Calendar size={20} className="text-indigo-500" />
@@ -244,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
           </div>
 
           {filteredEvents.length > 0 ? (
-            <div className="space-y-3 max-h-80 overflow-y-auto">
+            <div className="space-y-3 lg:max-h-80 lg:overflow-y-auto pr-1">
               {filteredEvents.map(evt => {
                 const child = childrenList.find(c => c.id === evt.childId);
                 const eventDate = parseISO(evt.date);
@@ -254,17 +258,17 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
                     <div className={`w-1 h-12 rounded-full bg-${child?.color || 'gray'}-500 shrink-0`}></div>
                     <div className="flex-1">
                       <div className="flex justify-between">
-                        <h4 className="font-medium text-slate-900">{evt.title}</h4>
-                        <div className="flex gap-2">
+                        <h4 className="font-medium text-slate-900 text-sm md:text-base">{evt.title}</h4>
+                        <div className="flex flex-col md:flex-row gap-1 md:gap-2 items-end md:items-center">
                           {showDate && (
-                            <span className="text-xs font-semibold px-2 py-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
+                            <span className="text-[10px] md:text-xs font-semibold px-2 py-1 rounded bg-indigo-50 border border-indigo-100 text-indigo-600">
                               {format(eventDate, 'EEE, MMM d')}
                             </span>
                           )}
-                          <span className="text-xs font-semibold px-2 py-1 rounded bg-white border border-slate-200 text-slate-600">{evt.time}</span>
+                          <span className="text-[10px] md:text-xs font-semibold px-2 py-1 rounded bg-white border border-slate-200 text-slate-600">{evt.time}</span>
                         </div>
                       </div>
-                      <p className="text-sm text-slate-500">{child?.name} • {evt.location || 'School'}</p>
+                      <p className="text-xs md:text-sm text-slate-500 mt-1">{child?.name} • {evt.location || 'School'}</p>
                     </div>
                   </div>
                 );
@@ -273,13 +277,13 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
           ) : (
             <div className="flex flex-col items-center justify-center py-8 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
               <CheckCircle size={32} className="mb-2 opacity-50" />
-              <p>No events {timePeriod === 'today' ? 'scheduled for today' : timePeriod === 'this-week' ? 'this week' : 'next week'}.</p>
+              <p>No events {timePeriod === 'today' ? 'today' : timePeriod === 'this-week' ? 'this week' : 'next week'}.</p>
             </div>
           )}
         </div>
 
-        {/* Actions Due Card - Now filtered by time period */}
-        <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 hover:shadow-md transition-shadow duration-300">
+        {/* Actions Due Card */}
+        <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <AlertCircle size={20} className="text-orange-500" />
@@ -290,7 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
             </span>
           </div>
 
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="space-y-3 lg:max-h-80 lg:overflow-y-auto pr-1">
             {filteredActions.map(action => {
               const child = childrenList.find(c => c.id === action.childId);
               const showDate = timePeriod !== 'today';
@@ -330,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       </div>
 
       {/* Activity Stats */}
-      <div className="bg-white rounded-2xl p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60 hover:shadow-md transition-shadow duration-300">
+      <div className="bg-white rounded-2xl p-5 md:p-6 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.05)] border border-slate-200/60">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-semibold text-slate-800">Activity Overview</h3>
         </div>
@@ -338,8 +342,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
-              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} />
+              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
               <Tooltip
                 cursor={{ fill: '#f8fafc' }}
                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
