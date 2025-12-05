@@ -63,6 +63,30 @@ const AppContent: React.FC = () => {
     }
   }, [session]);
 
+  // Helper: Find child by email rules (sender or domain)
+  const findMatchingChildren = (email: Partial<Email>, children: Child[]): Child[] => {
+    if (!email.sender) return [];
+
+    const sender = email.sender.toLowerCase();
+    const matched: Child[] = [];
+
+    // Check specific sender match first (highest priority if we had weighted rules, but strictly boolean here)
+    // Then check domain match
+    children.forEach(child => {
+      const rules = child.emailRules || [];
+      const hasMatch = rules.some(rule => {
+        const r = rule.toLowerCase().trim();
+        // Exact email match or Domain match (@school.com or school.com)
+        return sender.includes(r) || (r.startsWith('@') && sender.endsWith(r)) || sender.endsWith(`@${r}`);
+      });
+      if (hasMatch) {
+        matched.push(child);
+      }
+    });
+
+    return matched;
+  };
+
   // Background Sync Function - runs at App level so it persists across navigation
   const handleBackgroundSync = async () => {
     if (isSyncing) return;
@@ -108,14 +132,55 @@ const AppContent: React.FC = () => {
           continue;
         }
 
+        // --- IMPROVED MATCHING LOGIC ---
+        // Step A: deterministic rule matching
+        const matchingChildren = findMatchingChildren(email, children);
+        let preferredChildName: string | undefined = undefined;
+        let candidateNames = childNames; // Default to all if unknown
+
+        if (matchingChildren.length === 1) {
+          // Perfect match
+          preferredChildName = matchingChildren[0].name;
+          candidateNames = [matchingChildren[0].name];
+        } else if (matchingChildren.length > 1) {
+          // Ambiguous match (multiple siblings at same school?)
+          // We limit the AI choice to just these children
+          candidateNames = matchingChildren.map(c => c.name);
+        }
+
         // Analyze with Gemini
         processedCount++;
         setSyncStatus(`Analyzing email ${processedCount}...`);
-        console.log(`Analyzing email: ${email.subject}`);
-        const analysis = await analyzeEmailWithGemini(email.body || email.preview, childNames);
+        console.log(`Analyzing email: ${email.subject}. Candidates: ${candidateNames.join(', ')}`);
 
-        // Find matched child
-        const matchedChild = children.find(c => c.name === analysis.childName) || children[0];
+        const analysis = await analyzeEmailWithGemini(
+          email.body || email.preview,
+          candidateNames,
+          preferredChildName
+        );
+
+        // Find matched child from analysis result
+        let matchedChild = children.find(c => c.name.toLowerCase() === analysis.childName?.toLowerCase());
+
+        // Fallback Logic
+        if (!matchedChild) {
+          if (preferredChildName) {
+            // If AI failed but we had a strict rule match, trust the rule
+            matchedChild = matchingChildren[0];
+            console.log(`AI returned unknown child. Falling back to rule match: ${matchedChild.name}`);
+          } else if (matchingChildren.length > 0) {
+            // If AI failed and we had candidates from rules, pick the first one (better than arbitrary global first)
+            matchedChild = matchingChildren[0];
+            console.log(`AI returned unknown child. Falling back to first candidate: ${matchedChild.name}`);
+          } else {
+            // Total fail. Assign to first child globally (legacy behavior) or maybe an "Unassigned" bucket?
+            // For now, keep legacy behavior but log it.
+            matchedChild = children[0];
+            console.warn(`Could not attribute email to any child. Defaulting to ${matchedChild?.name}`);
+          }
+        }
+
+        if (!matchedChild) continue; // Should not happen if children array is not empty
 
         // Save Email
         const savedEmail = await supabaseService.createEmail({

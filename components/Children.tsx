@@ -172,8 +172,18 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setIsSyncing(true);
     try {
       const emails = await searchEmails(formData.emailRules || [], months);
-      if (emails.length > 0) {
-        onEmailsImported(emails);
+
+      // Filter out duplicates
+      const uniqueEmails: Email[] = [];
+      for (const email of emails) {
+        const existing = await supabaseService.findEmailByDetails(email.subject, email.receivedAt);
+        if (!existing) {
+          uniqueEmails.push(email);
+        }
+      }
+
+      if (uniqueEmails.length > 0) {
+        onEmailsImported(uniqueEmails);
       }
     } catch (e) {
       console.error("Sync failed during save", e);
@@ -223,11 +233,25 @@ const Children: React.FC<ChildrenProps> = ({ childrenList, onUpdateChildren, onE
     setIsSyncing(true);
     try {
       const emails = await searchEmails(formData.emailRules, months);
-      if (emails.length > 0) {
-        onEmailsImported(emails);
-        alert(`Successfully synced ${emails.length} emails from the past ${months} month(s).`);
+
+      // Filter out duplicates
+      const uniqueEmails: Email[] = [];
+      let duplicateCount = 0;
+
+      for (const email of emails) {
+        const existing = await supabaseService.findEmailByDetails(email.subject, email.receivedAt);
+        if (!existing) {
+          uniqueEmails.push(email);
+        } else {
+          duplicateCount++;
+        }
+      }
+
+      if (uniqueEmails.length > 0) {
+        onEmailsImported(uniqueEmails);
+        alert(`Successfully synced ${uniqueEmails.length} new emails from the past ${months} month(s). ${duplicateCount > 0 ? `Skipped ${duplicateCount} duplicates.` : ''}`);
       } else {
-        alert("No emails found matching these rules in that time range.");
+        alert(`No new emails found matching these rules in that time range. ${duplicateCount > 0 ? `(Skipped ${duplicateCount} duplicates)` : ''}`);
       }
     } catch (e) {
       console.error(e);

@@ -7,7 +7,7 @@ import { AIAnalysisResult, CategoryType, UrgencyLevel } from '../types';
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-export const analyzeEmailWithGemini = async (emailContent: string, childNames: string[]): Promise<AIAnalysisResult> => {
+export const analyzeEmailWithGemini = async (emailContent: string, childNames: string[], preferredChildName?: string): Promise<AIAnalysisResult> => {
   if (!ai) {
     console.warn("Gemini API Key missing. Returning mock data.");
     return mockAnalysis(childNames[0]);
@@ -20,6 +20,7 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
     Analyze the following school email text.
     
     Context - Known Children: ${childNames.join(', ')}.
+    ${preferredChildName ? `Note: This email was received from a source associated with ${preferredChildName}.` : ''}
     
     Task:
     1. Identify which child this relates to (or null if unsure).
