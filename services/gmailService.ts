@@ -1,5 +1,5 @@
 
-import { Email } from '../types';
+import { Email, Attachment } from '../types';
 import { format, subMonths } from 'date-fns';
 
 // Mutable variables to allow runtime configuration
@@ -214,6 +214,53 @@ export const getGmailUserProfile = async () => {
   }
 };
 
+const getAttachment = async (messageId: string, attachmentId: string): Promise<string | null> => {
+  try {
+    const response = await window.gapi.client.gmail.users.messages.attachments.get({
+      userId: 'me',
+      messageId: messageId,
+      id: attachmentId
+    });
+    return response.result.data;
+  } catch (error) {
+    console.error(`Failed to fetch attachment ${attachmentId}`, error);
+    return null;
+  }
+};
+
+const extractAttachments = async (messageId: string, payload: any): Promise<Attachment[]> => {
+  const attachments: Attachment[] = [];
+
+  const processPart = async (part: any) => {
+    if (part.filename && part.body && part.body.attachmentId) {
+      if (part.mimeType === 'application/pdf') {
+        const data = await getAttachment(messageId, part.body.attachmentId);
+        if (data) {
+          attachments.push({
+            filename: part.filename,
+            mimeType: part.mimeType,
+            data: data
+          });
+        }
+      }
+    }
+
+    if (part.parts) {
+      for (const subPart of part.parts) {
+        await processPart(subPart);
+      }
+    }
+  };
+
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      await processPart(part);
+    }
+  }
+
+  return attachments;
+};
+
 const processMessages = async (messages: any[]): Promise<Email[]> => {
   if (!messages || messages.length === 0) return [];
 
@@ -235,6 +282,8 @@ const processMessages = async (messages: any[]): Promise<Email[]> => {
       const dateHeader = headers.find((h: any) => h.name === 'Date')?.value;
       const snippet = result.snippet;
 
+      const attachments = await extractAttachments(result.id, result.payload);
+
       const bodyContent = extractEmailBody(result.payload);
 
       detailedEmails.push({
@@ -245,6 +294,7 @@ const processMessages = async (messages: any[]): Promise<Email[]> => {
         body: bodyContent || snippet,
         receivedAt: dateHeader ? new Date(dateHeader).toISOString() : new Date().toISOString(),
         isProcessed: false,
+        attachments: attachments,
       });
     } catch (innerErr) {
       console.warn(`Failed to fetch email ${msg.id}`, innerErr);

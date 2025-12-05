@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { AIAnalysisResult, CategoryType, UrgencyLevel } from '../types';
+import { AIAnalysisResult, CategoryType, UrgencyLevel, Attachment } from '../types';
 
 // Initialize Gemini Client
 // In a real production app, this would likely be proxied through a backend
@@ -7,7 +7,7 @@ import { AIAnalysisResult, CategoryType, UrgencyLevel } from '../types';
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-export const analyzeEmailWithGemini = async (emailContent: string, childNames: string[], preferredChildName?: string): Promise<AIAnalysisResult> => {
+export const analyzeEmailWithGemini = async (emailContent: string, childNames: string[], preferredChildName?: string, attachments: Attachment[] = []): Promise<AIAnalysisResult> => {
   if (!ai) {
     console.warn("Gemini API Key missing. Returning mock data.");
     return mockAnalysis(childNames[0]);
@@ -32,12 +32,27 @@ export const analyzeEmailWithGemini = async (emailContent: string, childNames: s
 
     Email Content:
     "${emailContent}"
+
+    ${attachments.length > 0 ? `Note: This email contains ${attachments.length} PDF attachment(s). Analyze their content as well.` : ''}
   `;
+
+  const contentParts: any[] = [{ text: prompt }];
+
+  for (const att of attachments) {
+    if (att.mimeType === 'application/pdf' && att.data) {
+      contentParts.push({
+        inlineData: {
+          mimeType: att.mimeType,
+          data: att.data
+        }
+      });
+    }
+  }
 
   try {
     const response = await ai.models.generateContent({
       model: modelId,
-      contents: prompt,
+      contents: [{ role: 'user', parts: contentParts }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {

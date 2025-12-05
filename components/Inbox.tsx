@@ -33,8 +33,11 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
     const childNames = childrenList.map(c => c.name);
 
     try {
+      const currentEmail = processingEmailId ? emails.find(e => e.id === processingEmailId) : null;
+      const attachments = currentEmail?.attachments || [];
+
       const [result] = await Promise.all([
-        analyzeEmailWithGemini(rawEmailText, childNames),
+        analyzeEmailWithGemini(rawEmailText, childNames, undefined, attachments),
         minDelay
       ]);
       setAnalysisResult(result);

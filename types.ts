@@ -45,6 +45,12 @@ export interface ActionItem {
   relatedEmailId?: string;
 }
 
+export interface Attachment {
+  filename: string;
+  mimeType: string;
+  data: string; // Base64 encoded data
+}
+
 export interface Email {
   id: string;
   subject: string;
@@ -58,6 +64,7 @@ export interface Email {
   summary?: string; // AI Generated
   extractedEvents?: SchoolEvent[];
   extractedActions?: ActionItem[];
+  attachments?: Attachment[];
 }
 
 export interface AIAnalysisResult {
