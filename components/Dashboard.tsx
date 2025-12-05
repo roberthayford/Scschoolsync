@@ -5,7 +5,8 @@ import {
   Sparkles,
   Loader2,
   X,
-  CalendarDays
+  CalendarDays,
+  RefreshCw
 } from 'lucide-react';
 import {
   BarChart,
@@ -17,15 +18,18 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { isToday, isTomorrow, isThisWeek, parseISO, compareAsc } from 'date-fns';
+import { motion, AnimatePresence } from 'framer-motion';
+
 import { Child, ActionItem, SchoolEvent } from '../types';
 import { askDashboardAgent } from '../services/geminiService';
 import { useAuth } from '../src/contexts/AuthContext';
 
-// New Components
+// Components
 import { EventCard } from './EventCard';
 import { ActionCard } from './ActionCard';
 import { ActionsBanner } from './ActionsBanner';
 import { EmptyState } from './EmptyState';
+import { ChildFilter } from './ChildFilter';
 
 interface DashboardProps {
   childrenList: Child[];
@@ -38,6 +42,9 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
   const [query, setQuery] = useState('');
   const [answer, setAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
+  const [selectedChildId, setSelectedChildId] = useState<string | 'all'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -52,10 +59,16 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
 
   const greeting = getGreeting();
 
-  // --- Data Processing for Continuous Timeline ---
+  // --- Filtering & Data Processing ---
+
+  const filterByChild = (item: { childId: string }) => {
+    return selectedChildId === 'all' || item.childId === selectedChildId;
+  };
 
   // Sort events chronologically
-  const sortedEvents = [...events].sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
+  const sortedEvents = [...events]
+    .filter(filterByChild)
+    .sort((a, b) => compareAsc(parseISO(a.date), parseISO(b.date)));
 
   // Group events
   const todayEvents = sortedEvents.filter(e => isToday(parseISO(e.date)));
@@ -67,8 +80,9 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
   );
 
   // Urgent/Pending Actions for Banner (overdue or due soon)
-  // Logic: Actions not completed
-  const pendingActions = actions.filter(a => !a.isCompleted);
+  const pendingActions = actions
+    .filter(a => !a.isCompleted)
+    .filter(filterByChild);
 
   // Helper to find child for an item
   const getChild = (childId: string) => childrenList.find(c => c.id === childId);
@@ -107,8 +121,29 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
     }
   };
 
+  const simulateRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => setIsRefreshing(false), 1500);
+  };
+
   return (
-    <div className="space-y-6 pb-20 md:pb-6 relative">
+    <div className="space-y-6 pb-20 md:pb-6 relative min-h-screen">
+
+      {/* Pull to Refresh Indicator (Visual Only) */}
+      <AnimatePresence>
+        {isRefreshing && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="flex justify-center py-4"
+          >
+            <div className="bg-white rounded-full p-2 shadow-lg border border-indigo-100">
+              <Loader2 className="animate-spin text-indigo-600" size={20} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Sticky Actions Banner */}
       <div className="-mx-4 -mt-4 md:mt-0 md:mx-0 mb-4 sticky top-16 md:top-0 z-40 shadow-sm">
@@ -120,7 +155,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
 
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+        <div onClick={simulateRefresh} className="cursor-pointer">
           {/* Date Display */}
           <p className="text-slate-500 font-medium text-sm">
             {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
@@ -135,49 +170,62 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
         </Link>
       </div>
 
+      {/* Child Filter */}
+      <ChildFilter
+        childrenList={childrenList}
+        selectedChildId={selectedChildId}
+        onSelect={setSelectedChildId}
+      />
+
       {/* Main Content Grid */}
       <div className="flex flex-col lg:flex-row gap-6">
 
-        {/* Left Column: Timeline (Events & Actions mixed could be better, but separating for now as per design) */}
+        {/* Left Column: Timeline */}
         <div className="flex-1 space-y-8">
 
           {/* TODAY Section */}
           <section>
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Today</h3>
-            {todayEvents.length > 0 ? (
-              todayEvents.map(event => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  child={getChild(event.childId)}
-                />
-              ))
-            ) : (
-              <EmptyState
-                icon={CalendarDays}
-                title="All clear for today! ✨"
-                description={tomorrowEvents.length > 0 ? "Check tomorrow's schedule below." : "No events scheduled for today."}
-              />
-            )}
+            <AnimatePresence mode='popLayout'>
+              {todayEvents.length > 0 ? (
+                todayEvents.map(event => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    child={getChild(event.childId)}
+                  />
+                ))
+              ) : (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  <EmptyState
+                    icon={CalendarDays}
+                    title="All clear for today! ✨"
+                    description={tomorrowEvents.length > 0 ? "Check tomorrow's schedule below." : "No events scheduled for today."}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </section>
 
           {/* TOMORROW Section */}
           <section>
             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Tomorrow</h3>
-            {tomorrowEvents.length > 0 ? (
-              tomorrowEvents.map(event => (
-                <EventCard
-                  key={event.id}
-                  event={event}
-                  child={getChild(event.childId)}
-                />
-              ))
-            ) : (
-              <p className="text-slate-400 text-sm italic ml-2">Nothing scheduled for tomorrow yet.</p>
-            )}
+            <AnimatePresence mode='popLayout'>
+              {tomorrowEvents.length > 0 ? (
+                tomorrowEvents.map(event => (
+                  <EventCard
+                    key={event.id}
+                    event={event}
+                    child={getChild(event.childId)}
+                  />
+                ))
+              ) : (
+                <p className="text-slate-400 text-sm italic ml-2">Nothing scheduled for tomorrow yet.</p>
+              )}
+            </AnimatePresence>
           </section>
 
-          {/* THIS WEEK Section (Collapsed/List style could go here, for now using standard cards) */}
+          {/* THIS WEEK Section */}
           {thisWeekEvents.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-3">
@@ -200,14 +248,16 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
           {pendingActions.length > 0 && (
             <section className="pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Outstanding Actions</h3>
-              {pendingActions.slice(0, 3).map(action => (
-                <ActionCard
-                  key={action.id}
-                  action={action}
-                  child={getChild(action.childId)}
-                  onToggle={onToggleAction}
-                />
-              ))}
+              <AnimatePresence>
+                {pendingActions.slice(0, 3).map(action => (
+                  <ActionCard
+                    key={action.id}
+                    action={action}
+                    child={getChild(action.childId)}
+                    onToggle={onToggleAction}
+                  />
+                ))}
+              </AnimatePresence>
               {pendingActions.length > 3 && (
                 <Link to="/actions" className="block text-center text-sm text-indigo-600 font-medium py-2 hover:bg-indigo-50 rounded-lg transition-colors">
                   View {pendingActions.length - 3} more actions

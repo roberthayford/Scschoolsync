@@ -538,12 +538,12 @@ When `prefers-reduced-motion` is enabled:
 | Empty states | All screens | 2 days | Copy writing |
 
 **Phase 1 Deliverables:**
-- [ ] Colour system implemented
-- [ ] Event cards with child attribution
-- [ ] Action cards with urgency indicators
-- [ ] Dashboard with actions banner
-- [ ] Continuous timeline view
-- [ ] Improved empty states
+- [x] Colour system implemented
+- [x] Event cards with child attribution
+- [x] Action cards with urgency indicators
+- [x] Dashboard with actions banner
+- [x] Continuous timeline view
+- [x] Improved empty states
 
 ### Phase 2: Interaction Polish (Weeks 4-5)
 
@@ -560,12 +560,12 @@ When `prefers-reduced-motion` is enabled:
 | Contextual details | Event cards | 2 days | AI extraction |
 
 **Phase 2 Deliverables:**
-- [ ] Smooth entry animations
-- [ ] Swipe to complete/snooze
-- [ ] Pull to refresh
-- [ ] Celebration animations
-- [ ] Child filter component
-- [ ] Inline event details
+- [x] Smooth entry animations
+- [x] Swipe to complete/snooze
+- [x] Pull to refresh
+- [x] Celebration animations
+- [x] Child filter component
+- [x] Inline event details
 
 ### Phase 3: Advanced Features (Weeks 6-8)
 
@@ -591,22 +591,22 @@ When `prefers-reduced-motion` is enabled:
 ### Implementation Checklist
 
 #### Design System Setup
-- [ ] Create colour tokens file
-- [ ] Define typography scale
-- [ ] Create spacing scale
-- [ ] Document component variants
-- [ ] Set up icon library
+- [x] Create colour tokens file
+- [x] Define typography scale
+- [x] Create spacing scale
+- [x] Document component variants
+- [x] Set up icon library
 
 #### Component Library
-- [ ] EventCard component
-- [ ] ActionCard component
-- [ ] ChildFilterPills component
-- [ ] UrgencyBadge component
-- [ ] EmptyState component
-- [ ] ActionsBanner component
+- [x] EventCard component
+- [x] ActionCard component
+- [x] ChildFilterPills component
+- [x] UrgencyBadge component
+- [x] EmptyState component
+- [x] ActionsBanner component
 
 #### Animations
-- [ ] Configure animation library (Reanimated/Framer Motion)
+- [x] Configure animation library (Reanimated/Framer Motion)
 - [ ] Create reusable animation hooks
 - [ ] Implement reduced motion support
 - [ ] Test performance on low-end devices
