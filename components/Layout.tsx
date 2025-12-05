@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Loader2 } from 'lucide-react';
+import UserAccountWidget from './UserAccountWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -62,15 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
         </nav>
 
         <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 p-2 rounded-lg bg-slate-50">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
-              JS
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-900">John Smith</p>
-              <p className="text-xs text-slate-500">Free Plan</p>
-            </div>
-          </div>
+          <UserAccountWidget />
         </div>
       </aside>
 

@@ -22,6 +22,7 @@ import {
 import { format, isToday, isThisWeek, addWeeks, startOfWeek, endOfWeek, parseISO, isSameDay, isWithinInterval } from 'date-fns';
 import { Child, ActionItem, SchoolEvent, UrgencyLevel, CategoryType } from '../types';
 import { askDashboardAgent } from '../services/geminiService';
+import { useAuth } from '../src/contexts/AuthContext';
 
 interface DashboardProps {
   childrenList: Child[];
@@ -36,6 +37,18 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
   const [answer, setAnswer] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('today');
+  const { user } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'User';
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
+  const greeting = getGreeting();
 
   // Time period filtering helpers
   const isInTimePeriod = (dateStr: string | undefined): boolean => {
@@ -137,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions }) 
       {/* Welcome Section */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Good Morning, John 👋</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{greeting}, {displayName} 👋</h2>
           <p className="text-slate-500">Here is what's happening with school today.</p>
         </div>
         <div className="flex gap-3">
