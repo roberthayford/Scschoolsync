@@ -73,7 +73,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
             dragElastic={0.2}
             onDragEnd={handleDragEnd}
             style={{ x: 0 }}
-            className={`bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3 relative overflow-hidden cursor-pointer ${action.isCompleted ? 'opacity-60 bg-gray-50' : ''}`}
+            className={`bg-background-primary rounded-card shadow-soft p-5 mb-3 relative overflow-hidden cursor-pointer hover:shadow-floating transition-all ${action.isCompleted ? 'opacity-60 bg-gray-50' : ''}`}
         >
             {/* Visual cue for swipe - rendered behind content if needed, currently implicit */}
 
@@ -91,7 +91,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
 
                     <div className="flex-1">
                         <div className="flex justify-between items-start mb-1">
-                            <h3 className={`font-semibold text-base leading-tight ${action.isCompleted ? 'text-gray-500 line-through' : 'text-gray-900'}`}>
+                            <h3 className={`font-semibold text-lg leading-tight font-serif ${action.isCompleted ? 'text-foreground-muted line-through' : 'text-foreground-primary'}`}>
                                 {action.title}
                             </h3>
                             {!action.isCompleted && (
@@ -99,7 +99,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
                             )}
                         </div>
 
-                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                        <div className="flex items-center gap-2 text-sm text-foreground-secondary mb-3">
                             {child && <span className="font-medium" style={{ color: action.isCompleted ? '#6B7280' : theme.dark }}>{child.name}</span>}
                             {child && <span>•</span>}
                             <span>Action Required</span>
@@ -109,9 +109,9 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
                         <div className="flex gap-2 mt-2">
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleToggle(); }}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${action.isCompleted
-                                    ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                className={`flex items-center gap-1.5 px-4 py-2 rounded-pill text-sm font-medium transition-colors border-none shadow-sm ${action.isCompleted
+                                    ? 'bg-background-secondary text-foreground-muted hover:bg-gray-200'
+                                    : 'bg-green-50 text-green-700 hover:bg-green-100'
                                     }`}
                             >
                                 <CheckCircle size={14} />
@@ -120,7 +120,7 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
 
                             <button
                                 onClick={handleView}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                                className="flex items-center gap-1.5 px-4 py-2 rounded-pill text-sm font-medium text-foreground-secondary bg-background-secondary hover:bg-gray-200 transition-colors shadow-sm"
                             >
                                 <FileText size={14} />
                                 View

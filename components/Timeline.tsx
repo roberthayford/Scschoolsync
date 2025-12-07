@@ -26,18 +26,18 @@ const Timeline: React.FC<TimelineProps> = ({ events, childrenList }) => {
     <div className="space-y-6 pb-20 lg:pb-0">
       <div className="flex flex-col gap-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-slate-900">Timeline</h2>
-          {/* Category Dropdown - Keeping simple for now, could be improved to a pill list too if specific categories are important to filter frequently */}
+          <h2 className="text-3xl font-bold text-foreground-primary font-serif">Timeline</h2>
+          {/* Category Dropdown */}
           <div className="relative">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="appearance-none bg-white border border-slate-200 text-slate-700 text-sm font-medium py-2 pl-4 pr-8 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="appearance-none bg-background-primary text-foreground-primary text-sm font-medium py-2.5 pl-4 pr-10 rounded-pill shadow-soft focus:outline-none focus:ring-2 focus:ring-brand-purple/30 border-none"
             >
               <option value="all">All Categories</option>
               {Object.values(CategoryType).map(c => <option key={c} value={c}>{c}</option>)}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-foreground-muted">
               <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
             </div>
           </div>
@@ -84,8 +84,8 @@ const Timeline: React.FC<TimelineProps> = ({ events, childrenList }) => {
                   transition={{ duration: 0.2, delay: index * 0.05 }}
                 >
                   {showMonthHeader && (
-                    <div className="sticky top-0 bg-slate-50 py-2 z-10 mb-4">
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">
+                    <div className="sticky top-0 bg-background-secondary py-3 z-10 mb-4">
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-foreground-secondary font-sans">
                         {format(date, 'MMMM yyyy')}
                       </h3>
                     </div>
@@ -93,9 +93,9 @@ const Timeline: React.FC<TimelineProps> = ({ events, childrenList }) => {
 
                   <div className="flex group mb-2">
                     {/* Date Column */}
-                    <div className="flex flex-col items-center mr-4 pt-1 w-12 shrink-0">
-                      <span className="text-xl font-bold text-slate-900">{format(date, 'd')}</span>
-                      <span className="text-xs font-medium text-slate-400 uppercase">{format(date, 'EEE')}</span>
+                    <div className="flex flex-col items-center mr-4 pt-1 w-14 shrink-0">
+                      <span className="text-2xl font-bold text-foreground-primary font-serif">{format(date, 'd')}</span>
+                      <span className="text-xs font-medium text-foreground-muted uppercase">{format(date, 'EEE')}</span>
                     </div>
 
                     {/* Event Card */}

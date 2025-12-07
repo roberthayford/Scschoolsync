@@ -9,21 +9,20 @@ interface UrgencyBadgeProps {
 }
 
 export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({ urgency, deadline, compact = false }) => {
-    const getColors = (level: UrgencyLevel) => {
+    const getBadgeClasses = (level: UrgencyLevel) => {
         switch (level) {
             case UrgencyLevel.CRITICAL:
-                return urgencyColours.critical;
             case UrgencyLevel.HIGH:
-                return urgencyColours.attention;
+                return 'bg-priority-high-bg text-priority-high-text';
             case UrgencyLevel.MEDIUM:
-                return urgencyColours.upcoming;
+                return 'bg-priority-medium-bg text-priority-medium-text';
             case UrgencyLevel.LOW:
             default:
-                return urgencyColours.default;
+                return 'bg-priority-low-bg text-priority-low-text';
         }
     };
 
-    const colors = getColors(urgency);
+    const badgeClass = getBadgeClasses(urgency);
 
     // Parse deadline to display "Due X" text if needed
     const getDeadlineText = () => {
@@ -41,10 +40,14 @@ export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({ urgency, deadline, c
     const text = getDeadlineText();
 
     if (compact) {
+        // Map urgency to simple bg colors for dot
+        const dotColor = urgency === UrgencyLevel.CRITICAL || urgency === UrgencyLevel.HIGH ? 'bg-red-500'
+            : urgency === UrgencyLevel.MEDIUM ? 'bg-orange-500'
+                : 'bg-blue-500';
+
         return (
             <div
-                className={`w-3 h-3 rounded-full ${urgency === UrgencyLevel.CRITICAL ? 'animate-pulse' : ''}`}
-                style={{ backgroundColor: colors.badge }}
+                className={`w-3 h-3 rounded-full ${dotColor} ${urgency === UrgencyLevel.CRITICAL ? 'animate-pulse' : ''}`}
                 title={text}
             />
         );
@@ -52,14 +55,9 @@ export const UrgencyBadge: React.FC<UrgencyBadgeProps> = ({ urgency, deadline, c
 
     return (
         <span
-            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${urgency === UrgencyLevel.CRITICAL ? 'animate-pulse' : ''}`}
-            style={{
-                backgroundColor: colors.background,
-                color: colors.text,
-                border: `1px solid ${colors.badge}20`
-            }}
+            className={`inline-flex items-center px-2 py-0.5 rounded-inner text-xs font-bold uppercase tracking-wide ${badgeClass} ${urgency === UrgencyLevel.CRITICAL ? 'animate-pulse' : ''}`}
         >
-            <span className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: colors.badge }}></span>
+            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 bg-current opacity-70`}></span>
             {text}
         </span>
     );

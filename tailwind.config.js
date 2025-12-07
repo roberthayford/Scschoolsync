@@ -14,9 +14,40 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Inter', 'sans-serif'],
+                sans: ['"SF Pro Text"', 'Inter', 'sans-serif'],
+                serif: ['"Playfair Display"', 'Merriweather', 'serif'],
+                display: ['"Playfair Display"', 'serif'],
             },
             colors: {
+                background: {
+                    primary: '#FFFFFF',
+                    secondary: '#F2F2F7',
+                    tertiary: '#F9F9F9',
+                },
+                foreground: {
+                    primary: '#000000',
+                    secondary: '#3C3C43',
+                    muted: '#8E8E93',
+                },
+                brand: {
+                    purple: '#7F77F1', // Focus Purple
+                    lavender: '#E9E5F5',
+                    lime: '#DCE898',
+                },
+                priority: {
+                    high: {
+                        bg: '#FADCDD',
+                        text: '#8B0000',
+                    },
+                    medium: {
+                        bg: '#FCE3CB',
+                        text: '#9C4400',
+                    },
+                    low: {
+                        bg: '#D6E4FF',
+                        text: '#003366',
+                    },
+                },
                 olivia: {
                     primary: '#6366F1',
                     light: '#EEF2FF',
@@ -32,8 +63,16 @@ export default {
                     light: '#F5F3FF',
                     dark: '#6D28D9',
                 },
-                // Urgency colors map to standard tailwind colors, but we can define semantic aliases if needed for utility classes
-            }
+            },
+            borderRadius: {
+                'card': '24px',
+                'inner': '12px',
+                'pill': '100px',
+            },
+            boxShadow: {
+                'soft': '0px 4px 20px rgba(0, 0, 0, 0.06)',
+                'floating': '0px 8px 30px rgba(0, 0, 0, 0.12)',
+            },
         },
     },
     plugins: [],

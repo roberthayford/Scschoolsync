@@ -15,20 +15,20 @@ export const ActionsBanner: React.FC<ActionsBannerProps> = ({ actions, onClick }
     return (
         <div
             onClick={onClick}
-            className="bg-white border border-red-100 shadow-[0_2px_8px_rgba(239,68,68,0.08)] rounded-2xl p-4 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all group"
+            className="bg-background-primary shadow-soft rounded-card p-4 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-all group hover:shadow-floating"
         >
-            <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 bg-red-50 rounded-full flex items-center justify-center shrink-0">
-                    <AlertTriangle size={20} className="text-red-500" />
+            <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-priority-high-bg rounded-inner flex items-center justify-center shrink-0">
+                    <AlertTriangle size={20} className="text-priority-high-text" />
                 </div>
                 <div>
-                    <p className="font-semibold text-slate-900 text-[15px] leading-tight">Action Required</p>
-                    <p className="text-slate-500 text-[13px] mt-0.5">{pendingCount} {pendingCount === 1 ? 'item needs' : 'items need'} attention</p>
+                    <p className="font-bold text-foreground-primary text-base leading-tight font-serif">Action Required</p>
+                    <p className="text-foreground-secondary text-sm mt-0.5">{pendingCount} {pendingCount === 1 ? 'item needs' : 'items need'} your attention</p>
                 </div>
             </div>
             <div className="flex items-center gap-1.5 pl-3">
-                <span className="text-xs font-medium text-red-500/80 group-hover:text-red-600 transition-colors">Review</span>
-                <ChevronRight size={16} className="text-red-400 group-hover:text-red-600 transition-colors" />
+                <span className="text-sm font-bold text-priority-high-text/80 group-hover:text-priority-high-text transition-colors uppercase tracking-wide">Review</span>
+                <ChevronRight size={18} className="text-priority-high-text group-hover:text-red-700 transition-colors" />
             </div>
         </div>
     );

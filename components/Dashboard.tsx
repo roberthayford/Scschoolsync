@@ -144,8 +144,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
             exit={{ opacity: 0, y: -20 }}
             className="flex justify-center py-4"
           >
-            <div className="bg-white rounded-full p-2 shadow-lg border border-indigo-100">
-              <Loader2 className="animate-spin text-indigo-600" size={20} />
+            <div className="bg-background-primary rounded-full p-2 shadow-soft">
+              <Loader2 className="animate-spin text-brand-purple" size={20} />
             </div>
           </motion.div>
         )}
@@ -163,14 +163,14 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div onClick={simulateRefresh} className="cursor-pointer">
           {/* Date Display */}
-          <p className="text-slate-500 font-medium text-sm">
+          <p className="text-foreground-secondary font-medium text-sm font-serif">
             {new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
-          <h2 className="text-2xl font-bold text-slate-900 mt-1">{greeting}, {displayName} 👋</h2>
+          <h2 className="text-3xl font-bold text-foreground-primary mt-1 font-serif">{greeting}, {displayName} 👋</h2>
         </div>
 
-        {/* Quick Process Button (Hidden on mobile if desired, or kept small) */}
-        <Link to="/inbox" className="hidden md:flex bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors items-center gap-2 shadow-sm">
+        {/* Quick Process Button */}
+        <Link to="/inbox" className="hidden md:flex bg-background-primary text-foreground-secondary px-6 py-2 rounded-pill text-sm font-medium transition-all shadow-soft items-center gap-2 hover:shadow-floating">
           <span>Synced just now</span>
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
         </Link>
@@ -191,7 +191,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
 
           {/* TODAY Section */}
           <section>
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Today</h3>
+            <h3 className="text-sm font-bold text-foreground-secondary uppercase tracking-wider mb-4 font-sans">Today</h3>
             <AnimatePresence mode='popLayout'>
               {todayEvents.length > 0 ? (
                 todayEvents.map(event => (
@@ -215,7 +215,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
 
           {/* TOMORROW Section */}
           <section>
-            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Tomorrow</h3>
+            <h3 className="text-sm font-bold text-foreground-secondary uppercase tracking-wider mb-4 font-sans">Tomorrow</h3>
             <AnimatePresence mode='popLayout'>
               {tomorrowEvents.length > 0 ? (
                 tomorrowEvents.map(event => (
@@ -226,7 +226,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
                   />
                 ))
               ) : (
-                <p className="text-slate-400 text-sm italic ml-2">Nothing scheduled for tomorrow yet.</p>
+                <p className="text-foreground-muted text-sm italic ml-2">Nothing scheduled for tomorrow yet.</p>
               )}
             </AnimatePresence>
           </section>
@@ -235,8 +235,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
           {thisWeekEvents.length > 0 && (
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">Rest of this Week</h3>
-                <Link to="/timeline" className="text-indigo-600 text-sm font-medium hover:underline">View Calendar</Link>
+                <h3 className="text-sm font-bold text-foreground-secondary uppercase tracking-wider font-sans">Rest of this Week</h3>
+                <Link to="/timeline" className="text-brand-purple text-sm font-medium hover:underline">View Calendar</Link>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {thisWeekEvents.map(event => (
@@ -250,10 +250,10 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
             </section>
           )}
 
-          {/* PENDING ACTIONS (Inline if high value) */}
+          {/* PENDING ACTIONS */}
           {pendingActions.length > 0 && (
-            <section className="pt-4 border-t border-slate-100">
-              <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Outstanding Actions</h3>
+            <section className="pt-4 border-t border-gray-100">
+              <h3 className="text-sm font-bold text-foreground-secondary uppercase tracking-wider mb-4 font-sans">Outstanding Actions</h3>
               <AnimatePresence>
                 {pendingActions.slice(0, 3).map(action => (
                   <ActionCard
@@ -265,7 +265,7 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
                 ))}
               </AnimatePresence>
               {pendingActions.length > 3 && (
-                <Link to="/actions" className="block text-center text-sm text-indigo-600 font-medium py-2 hover:bg-indigo-50 rounded-lg transition-colors">
+                <Link to="/actions" className="block text-center text-sm text-brand-purple font-medium py-2 hover:bg-brand-lavender rounded-inner transition-colors">
                   View {pendingActions.length - 3} more actions
                 </Link>
               )}
@@ -277,33 +277,33 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
         <div className="w-full lg:w-80 xl:w-96 space-y-6">
 
           {/* AI Assistant */}
-          <div className="bg-gradient-to-br from-indigo-600 via-violet-600 to-purple-600 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+          <div className="bg-brand-purple rounded-card p-6 text-white shadow-soft relative overflow-hidden">
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-3">
-                <Sparkles size={20} className="text-yellow-300" />
-                <h3 className="font-bold text-lg">Assistant</h3>
+                <Sparkles size={20} className="text-brand-lime" />
+                <h3 className="font-bold text-lg font-serif">Assistant</h3>
               </div>
-              <p className="text-indigo-100 text-sm mb-4">Ask about schedules, payments, or find details.</p>
+              <p className="text-brand-lavender text-sm mb-4">Ask about schedules, payments, or find details.</p>
 
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Ask anything..."
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 transition-all text-sm"
+                  className="w-full bg-white/10 border border-white/20 rounded-pill px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:bg-white/20 transition-all text-sm"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAskAgent()}
                 />
                 <button
                   onClick={handleAskAgent}
-                  className="absolute right-2 top-2 p-1 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+                  className="absolute right-2 top-[5px] p-2 bg-white/20 text-white rounded-full hover:bg-white/30 transition-colors"
                 >
                   {isAsking ? <Loader2 className="animate-spin" size={16} /> : <ArrowRight size={16} />}
                 </button>
               </div>
 
               {answer && (
-                <div className="mt-4 bg-white/10 rounded-lg p-3 text-sm animate-in fade-in">
+                <div className="mt-4 bg-white/10 rounded-inner p-3 text-sm animate-in fade-in">
                   <p>{answer}</p>
                   <button onClick={() => setAnswer(null)} className="absolute top-2 right-2 text-white/50 hover:text-white"><X size={12} /></button>
                 </div>
@@ -312,8 +312,8 @@ const Dashboard: React.FC<DashboardProps> = ({ childrenList, events, actions, on
           </div>
 
           {/* Activity Chart */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 hidden md:block">
-            <h3 className="text-sm font-bold text-slate-800 mb-4">Activity Overview</h3>
+          <div className="bg-background-primary rounded-card p-6 shadow-soft hidden md:block">
+            <h3 className="text-sm font-bold text-foreground-primary mb-4 font-sans uppercase tracking-wider">Activity Overview</h3>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>

@@ -1,7 +1,66 @@
 @import "tailwindcss";
 
+/* Tailwind v4 CSS-based theme configuration */
+@theme {
+  /* Font Families */
+  --font-sans: "SF Pro Text", "Inter", sans-serif;
+  --font-serif: "Playfair Display", "Merriweather", serif;
+
+  /* Background Colors */
+  --color-background-primary: #FFFFFF;
+  --color-background-secondary: #F2F2F7;
+  --color-background-tertiary: #F9F9F9;
+
+  /* Foreground / Text Colors */
+  --color-foreground-primary: #000000;
+  --color-foreground-secondary: #3C3C43;
+  --color-foreground-muted: #8E8E93;
+
+  /* Brand Colors */
+  --color-brand-purple: #7F77F1;
+  --color-brand-lavender: #E9E5F5;
+  --color-brand-lime: #DCE898;
+
+  /* Priority Colors */
+  --color-priority-high-bg: #FADCDD;
+  --color-priority-high-text: #8B0000;
+  --color-priority-medium-bg: #FCE3CB;
+  --color-priority-medium-text: #9C4400;
+  --color-priority-low-bg: #D6E4FF;
+  --color-priority-low-text: #003366;
+
+  /* Child Theme Colors (existing) */
+  --color-olivia-primary: #6366F1;
+  --color-olivia-light: #EEF2FF;
+  --color-olivia-dark: #4338CA;
+  --color-annabelle-primary: #EC4899;
+  --color-annabelle-light: #FDF2F8;
+  --color-annabelle-dark: #BE185D;
+  --color-shared-primary: #8B5CF6;
+  --color-shared-light: #F5F3FF;
+  --color-shared-dark: #6D28D9;
+
+  /* Border Radius */
+  --radius-card: 24px;
+  --radius-inner: 12px;
+  --radius-pill: 100px;
+
+  /* Box Shadows */
+  --shadow-soft: 0px 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow-floating: 0px 8px 30px rgba(0, 0, 0, 0.12);
+}
+
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-background-secondary text-foreground-primary antialiased font-sans;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-serif text-foreground-primary;
   }
 }

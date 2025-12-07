@@ -36,35 +36,35 @@ const UserAccountWidget: React.FC = () => {
         <div className="relative" ref={menuRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center gap-3 p-2 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-card bg-background-secondary hover:bg-gray-200 transition-colors text-left"
             >
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs shrink-0">
+                <div className="w-10 h-10 rounded-full bg-brand-lavender flex items-center justify-center text-brand-purple font-bold text-sm shrink-0">
                     {initials}
                 </div>
                 <div className="flex-1 overflow-hidden">
-                    <p className="text-sm font-medium text-slate-900 truncate">{displayName}</p>
-                    <p className="text-xs text-slate-500 truncate">Free Plan</p>
+                    <p className="text-sm font-bold text-foreground-primary truncate font-serif">{displayName}</p>
+                    <p className="text-xs text-foreground-secondary truncate">Free Plan</p>
                 </div>
-                <ChevronUp size={16} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                <ChevronUp size={16} className={`text-foreground-muted transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-in slide-in-from-bottom-2 fade-in z-50">
-                    <div className="p-1">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-background-primary rounded-card shadow-floating border-none overflow-hidden animate-in slide-in-from-bottom-2 fade-in z-50 p-2">
+                    <div className="space-y-1">
                         <NavLink
                             to="/settings"
                             onClick={() => setIsOpen(false)}
-                            className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}
+                            className={({ isActive }) => `flex items-center gap-2 px-3 py-2.5 rounded-inner text-sm transition-colors ${isActive ? 'bg-brand-lavender text-brand-purple font-medium' : 'text-foreground-secondary hover:bg-background-secondary hover:text-foreground-primary'}`}
                         >
-                            <Settings size={16} />
+                            <Settings size={18} />
                             Settings
                         </NavLink>
                         <button
                             onClick={handleSignOut}
-                            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-inner text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
                         >
-                            <LogOut size={16} />
+                            <LogOut size={18} />
                             Sign Out
                         </button>
                     </div>

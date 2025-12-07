@@ -36,20 +36,20 @@ export const EventCard: React.FC<EventCardProps> = ({ event, child, onClick }) =
             exit={{ opacity: 0, scale: 0.95 }}
             whileTap={{ scale: 0.98 }}
             onClick={onClick}
-            className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-3 transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden flex flex-col gap-2"
+            className="bg-background-primary rounded-card shadow-soft p-5 mb-3 transition-all active:scale-[0.98] cursor-pointer relative overflow-hidden flex flex-col gap-2 hover:shadow-floating"
             style={{ borderLeftWidth: '4px', borderLeftColor: theme.primary }}
         >
             <div className="flex justify-between items-start">
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-4">
                     <div
-                        className="p-2 rounded-lg"
+                        className="p-3 rounded-inner bg-background-secondary text-foreground-primary"
                         style={{ backgroundColor: categoryStyle.bg, color: categoryStyle.icon }}
                     >
                         {getCategoryIcon(event.category)}
                     </div>
                     <div>
-                        <h3 className="font-semibold text-gray-900 text-base leading-tight mb-1">{event.title}</h3>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <h3 className="font-semibold text-foreground-primary text-lg leading-tight mb-1 font-serif">{event.title}</h3>
+                        <div className="flex items-center gap-2 text-sm text-foreground-secondary">
                             {child && (
                                 <span className="font-medium" style={{ color: theme.dark }}>{child.name}</span>
                             )}
