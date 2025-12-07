@@ -15,9 +15,9 @@ export const ChildFilter: React.FC<ChildFilterProps> = ({ childrenList, selected
             <motion.button
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onSelect('all')}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${selectedChildId === 'all'
-                        ? 'bg-slate-800 text-white border-slate-800'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                className={`px-5 py-2.5 rounded-pill text-sm font-medium transition-all whitespace-nowrap shadow-sm ${selectedChildId === 'all'
+                    ? 'bg-foreground-primary text-white shadow-soft'
+                    : 'bg-background-primary text-foreground-secondary hover:bg-background-secondary'
                     }`}
             >
                 All
@@ -32,15 +32,14 @@ export const ChildFilter: React.FC<ChildFilterProps> = ({ childrenList, selected
                         key={child.id}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => onSelect(child.id)}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border whitespace-nowrap`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-pill text-sm font-medium transition-all whitespace-nowrap shadow-sm`}
                         style={{
-                            backgroundColor: isSelected ? theme.primary : 'white',
-                            borderColor: isSelected ? theme.primary : '#E2E8F0',
-                            color: isSelected ? 'white' : '#475569',
+                            backgroundColor: isSelected ? theme.primary : '#FFFFFF',
+                            color: isSelected ? 'white' : '#3C3C43',
                         }}
                     >
                         <span
-                            className={`w-2 h-2 rounded-full ${isSelected ? 'bg-white' : ''}`}
+                            className={`w-2 h-2 rounded-full`}
                             style={{ backgroundColor: isSelected ? 'white' : theme.primary }}
                         />
                         {child.name}
