@@ -5,6 +5,7 @@ import { UrgencyBadge } from './UrgencyBadge';
 import { CheckCircle, AlertCircle, FileText } from 'lucide-react';
 import { motion, PanInfo, useAnimation } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { useNavigate } from 'react-router-dom';
 
 interface ActionCardProps {
     action: ActionItem;
@@ -14,6 +15,7 @@ interface ActionCardProps {
 
 export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle }) => {
     const controls = useAnimation();
+    const navigate = useNavigate();
     const theme = child
         ? (childColours[child.name.toLowerCase() as keyof typeof childColours] || childColours.shared)
         : childColours.shared;
@@ -47,6 +49,15 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
             }
         } else {
             controls.start({ x: 0 }); // Reset position
+        }
+    };
+
+    const handleView = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (action.relatedEmailId) {
+            navigate(`/inbox?emailId=${action.relatedEmailId}`);
+        } else {
+            navigate('/inbox');
         }
     };
 
@@ -99,15 +110,18 @@ export const ActionCard: React.FC<ActionCardProps> = ({ action, child, onToggle 
                             <button
                                 onClick={(e) => { e.stopPropagation(); handleToggle(); }}
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${action.isCompleted
-                                        ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
-                                        : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                    ? 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
                                     }`}
                             >
                                 <CheckCircle size={14} />
                                 {action.isCompleted ? 'Mark as Undone' : 'Mark as Done'}
                             </button>
 
-                            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors">
+                            <button
+                                onClick={handleView}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+                            >
                                 <FileText size={14} />
                                 View
                             </button>

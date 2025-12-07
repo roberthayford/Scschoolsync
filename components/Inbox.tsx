@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Email, Child, CategoryType, SchoolEvent, ActionItem } from '../types';
 import { Mail, RefreshCw, Plus, ArrowRight, Loader2, Sparkles, CheckCircle2, MessageSquare, Copy, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -7,6 +7,7 @@ import { analyzeEmailWithGemini, generateDraftReply } from '../services/geminiSe
 import { motion, AnimatePresence } from 'framer-motion';
 import { childColours } from '../src/theme/colors';
 import { EmptyState } from './EmptyState';
+import { useLocation } from 'react-router-dom';
 
 interface InboxProps {
   emails: Email[];
@@ -29,9 +30,34 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const [processingEmailId, setProcessingEmailId] = useState<string | null>(null);
 
+  // Navigation / Scroll State
+  const location = useLocation();
+  const [highlightedEmailId, setHighlightedEmailId] = useState<string | null>(null);
+
   // Draft Reply State
   const [draftingForId, setDraftingForId] = useState<string | null>(null);
   const [draftResult, setDraftResult] = useState<{ id: string, text: string } | null>(null);
+
+  // Handle deep linking / scrolling to email from URL (e.g., from ActionCard)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const emailId = params.get('emailId');
+
+    if (emailId && emails.length > 0) {
+      // Find the element
+      const element = document.getElementById(`email-card-${emailId}`);
+      if (element) {
+        // Scroll into view
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Highlight temporarily
+        setHighlightedEmailId(emailId);
+        const timer = setTimeout(() => setHighlightedEmailId(null), 3000);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.search, emails]);
 
   // Function to handle the AI Processing
   const handleAnalyze = async () => {
@@ -215,6 +241,7 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
 
               const isDrafting = draftingForId === email.id;
               const showDraft = draftResult?.id === email.id;
+              const isHighlighted = highlightedEmailId === email.id;
 
               // Prepare extended preview text
               const previewText = email.body
@@ -224,15 +251,23 @@ const Inbox: React.FC<InboxProps> = ({ emails, childrenList, onEmailProcessed })
               return (
                 <motion.div
                   key={email.id}
+                  id={`email-card-${email.id}`}
                   layout
                   initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: isHighlighted ? 1.02 : 1,
+                    borderColor: isHighlighted ? theme.primary : undefined,
+                    boxShadow: isHighlighted ? `0 0 0 2px ${theme.primary}20` : undefined,
+                  }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   whileTap={{ scale: 0.99 }}
                   transition={{ duration: 0.2, delay: idx * 0.05 }}
                   className={`bg-white rounded-2xl border transition-all cursor-pointer relative overflow-hidden group
                     ${email.isProcessed ? 'border-slate-200 shadow-sm' : 'border-indigo-100 shadow-[0_2px_8px_rgba(99,102,241,0.1)]'}
                     hover:shadow-md hover:border-indigo-200
+                    ${isHighlighted ? 'bg-indigo-50/50' : ''}
                   `}
                   onClick={() => {
                     // Expanding logic could go here, for now it just processes if not processed
