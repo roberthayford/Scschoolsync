@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Calendar, CheckSquare, Users, Inbox, Settings, Loader2 } from 'lucide-react';
 import UserAccountWidget from './UserAccountWidget';
@@ -11,6 +11,13 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus }) => {
   const location = useLocation();
+  const scrollContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollContentRef.current) {
+      scrollContentRef.current.scrollTop = 0;
+    }
+  }, [location.pathname]);
 
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -87,7 +94,7 @@ const Layout: React.FC<LayoutProps> = ({ children, isSyncing = false, syncStatus
         </header>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8">
+        <div ref={scrollContentRef} className="flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8">
           <div className="max-w-6xl mx-auto w-full">
             {children}
           </div>
